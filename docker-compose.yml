@@ -119,6 +119,24 @@ services:
       ogamex-app:
         condition: service_healthy
 
+  # AI Player Daemon
+  ogamex-ai-daemon:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ./:/var/www
+      - ./php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    environment:
+      CONTAINER_ROLE: ai-daemon
+      AI_DAEMON_INTERVAL: "${AI_DAEMON_INTERVAL:-30}"
+    networks:
+      - app-network
+    depends_on:
+      ogamex-app:
+        condition: service_healthy
+
   # PhpMyAdmin
   ogamex-phpmyadmin:
     image: phpmyadmin

@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use OGame\Http\Controllers\Admin\AiPlayerAdminController;
 use OGame\Http\Controllers\Admin\DeveloperShortcutsController;
 use OGame\Http\Controllers\Admin\RulesController as AdminRulesController;
 use OGame\Http\Controllers\Admin\ServerAdministrationController;
@@ -280,4 +281,16 @@ Route::middleware(['auth', 'globalgame', 'locale', 'admin'])->group(function () 
     Route::post('/admin/developershortcuts/create-at-coords', [DeveloperShortcutsController::class, 'createAtCoords'])->name('admin.developershortcuts.create-at-coords');
     Route::post('/admin/developershortcuts/create-debris', [DeveloperShortcutsController::class, 'createDebris'])->name('admin.developershortcuts.create-debris');
     Route::post('/admin/developershortcuts/update-dark-matter', [DeveloperShortcutsController::class, 'updateDarkMatter'])->name('admin.developershortcuts.update-dark-matter');
+
+    // AI Players management
+    Route::get('/admin/ai-players', [AiPlayerAdminController::class, 'index'])->name('admin.ai-players.index');
+    Route::get('/admin/ai-players/create', [AiPlayerAdminController::class, 'create'])->name('admin.ai-players.create');
+    Route::post('/admin/ai-players', [AiPlayerAdminController::class, 'store'])->name('admin.ai-players.store');
+    Route::get('/admin/ai-players/daemon', [AiPlayerAdminController::class, 'daemon'])->name('admin.ai-players.daemon');
+    Route::get('/admin/ai-players/{id}', [AiPlayerAdminController::class, 'show'])->name('admin.ai-players.show');
+    Route::put('/admin/ai-players/{id}', [AiPlayerAdminController::class, 'update'])->name('admin.ai-players.update');
+    Route::delete('/admin/ai-players/{id}', [AiPlayerAdminController::class, 'destroy'])->name('admin.ai-players.destroy');
+    Route::post('/admin/ai-players/{id}/toggle', [AiPlayerAdminController::class, 'toggle'])->name('admin.ai-players.toggle');
+    Route::post('/admin/ai-players/{id}/impersonate', [AiPlayerAdminController::class, 'impersonate'])->name('admin.ai-players.impersonate');
+    Route::get('/admin/ai-players/{id}/logs', [AiPlayerAdminController::class, 'logs'])->name('admin.ai-players.logs');
 });
