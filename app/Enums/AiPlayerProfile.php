@@ -2,6 +2,8 @@
 
 namespace OGame\Enums;
 
+use OGame\Enums\CharacterClass;
+
 enum AiPlayerProfile: string
 {
     case AGGRESSIVE = 'aggressive';
@@ -55,6 +57,25 @@ enum AiPlayerProfile: string
             self::MINER => ['building' => 9, 'research' => 4, 'fleet' => 2],
             self::RAIDER => ['building' => 3, 'research' => 4, 'fleet' => 8],
             self::TURTLE => ['building' => 7, 'research' => 4, 'fleet' => 1],
+        };
+    }
+
+    /**
+     * Get the preferred CharacterClass for this AI profile.
+     *
+     * - Collector: economic bonuses (mine production, transporter, crawler) – suits mining/turtle profiles.
+     * - General:   combat bonuses (ship speed, combat research, fleet slots) – suits aggressive/raider/defensive profiles.
+     * - Discoverer: research & expedition bonuses (research speed, expedition gains) – suits neutral profile.
+     */
+    public function getPreferredCharacterClass(): CharacterClass
+    {
+        return match ($this) {
+            self::MINER => CharacterClass::COLLECTOR,
+            self::TURTLE => CharacterClass::COLLECTOR,
+            self::AGGRESSIVE => CharacterClass::GENERAL,
+            self::RAIDER => CharacterClass::GENERAL,
+            self::DEFENSIVE => CharacterClass::GENERAL,
+            self::NEUTRAL => CharacterClass::DISCOVERER,
         };
     }
 }
