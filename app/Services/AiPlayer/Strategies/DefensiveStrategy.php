@@ -24,7 +24,7 @@ class DefensiveStrategy extends AbstractStrategy
             'metal_store',
             'crystal_store',
             'deuterium_store',
-            'nanite_factory',
+            'nano_factory',
         ];
     }
 
@@ -33,8 +33,8 @@ class DefensiveStrategy extends AbstractStrategy
         return [
             'energy_technology',
             'shielding_technology',
-            'armour_technology',
-            'weapons_technology',
+            'armor_technology',
+            'weapon_technology',
             'computer_technology',
             'espionage_technology',
             'combustion_drive',
