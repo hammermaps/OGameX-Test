@@ -14,7 +14,7 @@
      ===========================================
 
      Powered by OGameX - Explore the universe! Conquer your enemies!
-     GitHub: https://github.com/lanedirt/OGameX
+     GitHub: https://github.com/hammermaps/OGameX-Test
      Version: {{ \OGame\Facades\GitInfoUtil::getAppVersionBranchCommit() }}
 
     This application is released under the MIT License. For more details, visit the GitHub repository.
