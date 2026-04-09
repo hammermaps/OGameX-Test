@@ -46,6 +46,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property int|null $character_class
  * @property bool $character_class_free_used
  * @property Carbon|null $character_class_changed_at
+ * @property bool $is_ai_player
  * @property-read DatabaseNotificationCollection<int, DatabaseNotification> $notifications
  * @property-read int|null $notifications_count
  * @property-read UserTech|null $tech
@@ -150,6 +151,7 @@ class User extends Authenticatable
         'character_class_free_used' => 'boolean',
         'character_class_changed_at' => 'datetime',
         'alliance_left_at' => 'datetime',
+        'is_ai_player' => 'boolean',
     ];
 
     /**
@@ -274,6 +276,16 @@ class User extends Authenticatable
     public function bans(): HasMany
     {
         return $this->hasMany(Ban::class);
+    }
+
+    /**
+     * Get the AI player record for this user (if applicable).
+     *
+     * @return HasOne
+     */
+    public function aiPlayer(): HasOne
+    {
+        return $this->hasOne(AiPlayer::class);
     }
 
     /**
