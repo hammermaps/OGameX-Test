@@ -93,7 +93,7 @@ class RaiderStrategy extends AbstractStrategy
 
     public function shouldExpand(PlayerService $player): bool
     {
-        return $player->planets->count() < 6;
+        return $player->planets->planetCount() < 6;
     }
 
     /**
