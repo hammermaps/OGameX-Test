@@ -24,7 +24,7 @@ class MinerStrategy extends AbstractStrategy
             'robot_factory',
             'research_lab',
             'shipyard',
-            'nanite_factory',
+            'nano_factory',
         ];
     }
 
@@ -35,12 +35,12 @@ class MinerStrategy extends AbstractStrategy
             'computer_technology',
             'combustion_drive',
             'espionage_technology',
-            'astrophysics',
             'impulse_drive',
-            'plasma_technology',
+            'astrophysics',
+            'laser_technology',
             'shielding_technology',
-            'armour_technology',
-            'weapons_technology',
+            'armor_technology',
+            'weapon_technology',
             'hyperspace_technology',
             'hyperspace_drive',
         ];

@@ -24,7 +24,7 @@ class RaiderStrategy extends AbstractStrategy
             'metal_store',
             'crystal_store',
             'deuterium_store',
-            'nanite_factory',
+            'nano_factory',
         ];
     }
 
@@ -34,13 +34,15 @@ class RaiderStrategy extends AbstractStrategy
             'energy_technology',
             'combustion_drive',
             'espionage_technology',
-            'weapons_technology',
+            'weapon_technology',
             'impulse_drive',
             'computer_technology',
+            'laser_technology',
+            'ion_technology',
             'shielding_technology',
-            'armour_technology',
-            'hyperspace_drive',
+            'armor_technology',
             'hyperspace_technology',
+            'hyperspace_drive',
             'astrophysics',
         ];
     }

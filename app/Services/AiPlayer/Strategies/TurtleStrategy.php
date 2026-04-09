@@ -24,7 +24,7 @@ class TurtleStrategy extends AbstractStrategy
             'robot_factory',
             'shipyard',
             'research_lab',
-            'nanite_factory',
+            'nano_factory',
         ];
     }
 
@@ -33,13 +33,14 @@ class TurtleStrategy extends AbstractStrategy
         return [
             'energy_technology',
             'shielding_technology',
-            'armour_technology',
-            'weapons_technology',
+            'armor_technology',
+            'weapon_technology',
             'laser_technology',
             'ion_technology',
             'computer_technology',
             'espionage_technology',
             'combustion_drive',
+            'impulse_drive',
             'astrophysics',
             'plasma_technology',
         ];
