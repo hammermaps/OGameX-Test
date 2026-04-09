@@ -15,13 +15,39 @@ use OGame\Services\PlayerService;
 abstract class AbstractStrategy implements AiPlayerStrategyInterface
 {
     /**
+     * Energy-producing building machine names, in order of preference.
+     * When the planet has a negative energy balance the AI will try to build
+     * one of these before following the normal priority list.
+     */
+    protected const ENERGY_PRODUCERS = ['solar_plant', 'fusion_plant'];
+
+    /**
      * Find the first building in the priority list that can be built on the planet.
+     *
+     * When the planet's energy balance is negative (consumption exceeds production)
+     * the method first tries to queue an energy-producing building so that resource
+     * mines keep running at full efficiency.
      *
      * @param PlanetService $planet
      * @return int|null
      */
     public function decideBuildingPriority(PlanetService $planet): ?int
     {
+        // If energy is negative, try to build an energy producer first.
+        if ($planet->energy()->get() < 0) {
+            foreach (self::ENERGY_PRODUCERS as $machineName) {
+                if ($this->canBuildObject($machineName, $planet)) {
+                    $object = ObjectService::getObjectByMachineName($machineName);
+                    Log::channel('ai')->info('Energy deficit detected – prioritizing energy producer', [
+                        'planet_id'    => $planet->getPlanetId(),
+                        'building'     => $machineName,
+                        'energy_level' => $planet->energy()->get(),
+                    ]);
+                    return $object->id;
+                }
+            }
+        }
+
         foreach ($this->getBuildingPriorityList() as $machineName) {
             if ($this->canBuildObject($machineName, $planet)) {
                 $object = ObjectService::getObjectByMachineName($machineName);
