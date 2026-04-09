@@ -81,6 +81,7 @@
                     <p class="box_highlight textCenter no_buddies">@lang('Actions')</p>
                     <div class="group bborder" style="display: block; text-align: center; padding: 10px;">
                         <a href="{{ route('admin.ai-players.create') }}" class="btn_blue" style="margin: 5px;">@lang('Create AI Player')</a>
+                        <a href="{{ route('admin.ai-players.activity-log') }}" class="btn_blue" style="margin: 5px;">@lang('Activity Log')</a>
                     </div>
 
                     {{-- ===== AI PLAYERS TABLE ===== --}}

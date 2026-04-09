@@ -139,6 +139,7 @@
 
                     <div class="group bborder" style="display: block; text-align: center; padding: 10px;">
                         <a href="{{ route('admin.ai-players.index') }}" class="btn_blue">@lang('Back to AI Players')</a>
+                        <a href="{{ route('admin.ai-players.activity-log') }}" class="btn_blue">@lang('Activity Log')</a>
                         <button id="toggleAutoRefresh" class="btn_blue" onclick="toggleAutoRefresh()">@lang('Auto-Refresh: OFF')</button>
                     </div>
 
