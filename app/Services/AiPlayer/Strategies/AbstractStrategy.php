@@ -33,16 +33,25 @@ abstract class AbstractStrategy implements AiPlayerStrategyInterface
     ];
 
     /**
+     * Threshold (in fields) below which a non-homeworld planet is treated as a resource colony.
+     */
+    protected const RESOURCE_COLONY_FIELD_THRESHOLD = 140;
+
+    /**
      * Find the first building in the priority list that can be built on the planet.
      *
      * When the planet's energy balance is negative (consumption exceeds production)
      * the method first tries to queue an energy-producing building so that resource
      * mines keep running at full efficiency.
      *
+     * On small resource-colony planets the method delegates to the
+     * resource-colony priority list instead of the regular one.
+     *
      * @param PlanetService $planet
+     * @param PlayerService $player
      * @return int|null
      */
-    public function decideBuildingPriority(PlanetService $planet): ?int
+    public function decideBuildingPriority(PlanetService $planet, PlayerService $player): ?int
     {
         // If energy is negative, try to build an energy producer first.
         if ($planet->energy()->get() < 0) {
@@ -59,7 +68,12 @@ abstract class AbstractStrategy implements AiPlayerStrategyInterface
             }
         }
 
-        foreach ($this->getBuildingPriorityList() as $machineName) {
+        // Use the focused resource-colony build list for small non-homeworld planets.
+        $priorityList = $this->isResourceColony($planet, $player)
+            ? $this->getResourceColonyBuildingPriorityList()
+            : $this->getBuildingPriorityList();
+
+        foreach ($priorityList as $machineName) {
             if (!$this->canBuildObject($machineName, $planet)) {
                 continue;
             }
@@ -133,7 +147,56 @@ abstract class AbstractStrategy implements AiPlayerStrategyInterface
      */
     public function shouldExpand(PlayerService $player): bool
     {
-        return $player->planets->count() < 5;
+        return $player->planets->planetCount() < 5;
+    }
+
+    /**
+     * Default resource-colony building priority list.
+     *
+     * Focused on pure resource extraction with storage, no combat or research infrastructure.
+     *
+     * @return list<string>
+     */
+    public function getResourceColonyBuildingPriorityList(): array
+    {
+        return [
+            'metal_mine',
+            'crystal_mine',
+            'solar_plant',
+            'deuterium_synthesizer',
+            'metal_store',
+            'crystal_store',
+            'deuterium_store',
+            'robot_factory',
+        ];
+    }
+
+    /**
+     * Determine whether the given planet should be treated as a resource colony.
+     *
+     * By default a planet is considered a resource colony when it is not the player's
+     * homeworld (first planet) and has fewer building fields than the threshold.
+     *
+     * @param PlanetService $planet
+     * @param PlayerService $player
+     * @return bool
+     */
+    public function isResourceColony(PlanetService $planet, PlayerService $player): bool
+    {
+        // The homeworld is the planet with the lowest ID (created first).  It is never
+        // treated as a resource colony regardless of its field count.
+        $homeworldId = null;
+        foreach ($player->planets->allPlanets() as $p) {
+            if ($homeworldId === null || $p->getPlanetId() < $homeworldId) {
+                $homeworldId = $p->getPlanetId();
+            }
+        }
+
+        if ($homeworldId === $planet->getPlanetId()) {
+            return false;
+        }
+
+        return $planet->getPlanetFieldMax() < self::RESOURCE_COLONY_FIELD_THRESHOLD;
     }
 
     /**

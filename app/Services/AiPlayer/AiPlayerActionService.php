@@ -4,11 +4,17 @@ namespace OGame\Services\AiPlayer;
 
 use Exception;
 use Illuminate\Support\Facades\Log;
+use OGame\Enums\AiPlayerProfile;
 use OGame\Factories\PlayerServiceFactory;
+use OGame\GameObjects\Models\Units\UnitCollection;
 use OGame\Models\AiPlayer;
 use OGame\Models\AiPlayerLog;
+use OGame\Models\Enums\PlanetType;
+use OGame\Models\Planet\Coordinate;
+use OGame\Models\Resources;
 use OGame\Services\AiPlayer\Strategies\AiPlayerStrategyInterface;
 use OGame\Services\BuildingQueueService;
+use OGame\Services\FleetMissionService;
 use OGame\Services\ObjectService;
 use OGame\Services\PlanetService;
 use OGame\Services\PlayerService;
@@ -19,7 +25,7 @@ use OGame\Services\UnitQueueService;
  * Core decision engine for AI players.
  *
  * Processes each AI player's turn: checking queues, building, researching,
- * constructing units, and dispatching fleets.
+ * constructing units, dispatching fleets, and colonizing new planets.
  */
 class AiPlayerActionService
 {
@@ -64,6 +70,9 @@ class AiPlayerActionService
         $user->time = (string) now()->timestamp;
         $user->save();
 
+        // Try to colonize a new planet (once per turn, not per planet).
+        $actionsExecuted += $this->tryColonize($aiPlayer, $strategy, $playerService);
+
         // Process each planet
         foreach ($playerService->planets->allPlanets() as $planet) {
             $actionsExecuted += $this->processPlanet($aiPlayer, $strategy, $playerService, $planet);
@@ -87,13 +96,16 @@ class AiPlayerActionService
         $actions = 0;
 
         // 1. Try to build a building
-        $actions += $this->tryBuildBuilding($aiPlayer, $strategy, $planet);
+        $actions += $this->tryBuildBuilding($aiPlayer, $strategy, $playerService, $planet);
 
         // 2. Try to start research
         $actions += $this->tryStartResearch($aiPlayer, $strategy, $playerService, $planet);
 
         // 3. Try to build units (ships/defense)
         $actions += $this->tryBuildUnits($aiPlayer, $strategy, $planet);
+
+        // 4. Try to dispatch a fleet action (transport, espionage, expedition)
+        $actions += $this->tryFleetAction($aiPlayer, $strategy, $playerService, $planet);
 
         return $actions;
     }
@@ -104,6 +116,7 @@ class AiPlayerActionService
     private function tryBuildBuilding(
         AiPlayer $aiPlayer,
         AiPlayerStrategyInterface $strategy,
+        PlayerService $playerService,
         PlanetService $planet,
     ): int {
         // Only act based on building priority weight
@@ -111,7 +124,7 @@ class AiPlayerActionService
             return 0;
         }
 
-        $buildingId = $strategy->decideBuildingPriority($planet);
+        $buildingId = $strategy->decideBuildingPriority($planet, $playerService);
         if ($buildingId === null) {
             return 0;
         }
@@ -227,6 +240,203 @@ class AiPlayerActionService
             }
         }
         return $actionsCount;
+    }
+
+    /**
+     * Attempt to dispatch a fleet action (transport, espionage, expedition) from a planet.
+     *
+     * The strategy returns a description of the desired action. This method validates
+     * that the required ships are actually on the planet, builds the UnitCollection,
+     * determines the resources to carry (for transport missions all current resources
+     * are included), and dispatches the mission via FleetMissionService.
+     */
+    private function tryFleetAction(
+        AiPlayer $aiPlayer,
+        AiPlayerStrategyInterface $strategy,
+        PlayerService $playerService,
+        PlanetService $planet,
+    ): int {
+        // Only act based on fleet priority weight
+        if (rand(1, 10) > $aiPlayer->priority_fleet) {
+            return 0;
+        }
+
+        $action = $strategy->decideFleetAction($playerService, $planet);
+        if ($action === null) {
+            return 0;
+        }
+
+        try {
+            $units = $this->buildUnitCollection($action['ships'], $planet);
+            if ($units === null) {
+                return 0;
+            }
+
+            $target = new Coordinate(
+                (int) $action['target']['galaxy'],
+                (int) $action['target']['system'],
+                (int) $action['target']['position'],
+            );
+
+            // For transport missions carry all current resources on the planet.
+            $resources = new Resources(0, 0, 0, 0);
+            if ((int) $action['mission_type'] === 3) {
+                $resources = $planet->getResources();
+                // Strip the energy component – Resources stores energy in the fourth slot.
+                $resources = new Resources(
+                    (int) $resources->metal->get(),
+                    (int) $resources->crystal->get(),
+                    (int) $resources->deuterium->get(),
+                    0,
+                );
+            }
+
+            $fleetMissionService = resolve(FleetMissionService::class, ['player' => $playerService]);
+            $fleetMissionService->createNewFromPlanet(
+                $planet,
+                $target,
+                PlanetType::Planet,
+                (int) $action['mission_type'],
+                $units,
+                $resources,
+                10.0,
+            );
+
+            $this->logAction($aiPlayer, 'fleet_action', [
+                'planet_id'    => $planet->getPlanetId(),
+                'mission_type' => $action['mission_type'],
+                'target'       => $action['target'],
+                'ships'        => $action['ships'],
+            ], 'success');
+
+            return 1;
+        } catch (\Throwable $e) {
+            $this->logAction($aiPlayer, 'fleet_action', [
+                'planet_id'    => $planet->getPlanetId(),
+                'mission_type' => $action['mission_type'] ?? null,
+                'target'       => $action['target'] ?? null,
+            ], 'failed', $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Attempt to colonize a new planet if the strategy recommends expanding.
+     *
+     * Checks all planets for an available colony ship, obtains a colonization
+     * target from the target service (preferring large-planet positions for the
+     * Miner profile), and dispatches a colonization mission.
+     *
+     * Colonization is gated by the fleet priority weight so that profiles with a
+     * low fleet priority (e.g. Turtle) colonize much less aggressively.
+     */
+    private function tryColonize(
+        AiPlayer $aiPlayer,
+        AiPlayerStrategyInterface $strategy,
+        PlayerService $playerService,
+    ): int {
+        // Gate by fleet priority
+        if (rand(1, 10) > $aiPlayer->priority_fleet) {
+            return 0;
+        }
+
+        if (!$strategy->shouldExpand($playerService)) {
+            return 0;
+        }
+
+        // Find the first planet that has at least one colony ship available.
+        $sourcePlanet = null;
+        foreach ($playerService->planets->allPlanets() as $planet) {
+            if ($planet->getObjectAmount('colony_ship') > 0) {
+                $sourcePlanet = $planet;
+                break;
+            }
+        }
+
+        if ($sourcePlanet === null) {
+            return 0;
+        }
+
+        // Pick a colonization target. Miners prefer positions known for large planets.
+        $isMiner = $aiPlayer->profile === AiPlayerProfile::MINER->value;
+        $target = $isMiner
+            ? $this->targetService->findLargePlanetColonizationTarget($playerService)
+            : $this->targetService->findColonizationTarget($playerService);
+
+        if ($target === null) {
+            return 0;
+        }
+
+        try {
+            $colonyShipObject = ObjectService::getShipObjectByMachineName('colony_ship');
+            $units = new UnitCollection();
+            $units->addUnit($colonyShipObject, 1);
+
+            $targetCoordinate = new Coordinate(
+                $target['galaxy'],
+                $target['system'],
+                $target['position'],
+            );
+
+            $fleetMissionService = resolve(FleetMissionService::class, ['player' => $playerService]);
+            $fleetMissionService->createNewFromPlanet(
+                $sourcePlanet,
+                $targetCoordinate,
+                PlanetType::Planet,
+                7, // Colonisation
+                $units,
+                new Resources(0, 0, 0, 0),
+                10.0,
+            );
+
+            $this->logAction($aiPlayer, 'colonize', [
+                'planet_id' => $sourcePlanet->getPlanetId(),
+                'target'    => $target,
+            ], 'success');
+
+            return 1;
+        } catch (\Throwable $e) {
+            $this->logAction($aiPlayer, 'colonize', [
+                'planet_id' => $sourcePlanet->getPlanetId(),
+                'target'    => $target,
+            ], 'failed', $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Build a UnitCollection from a map of object_id => amount.
+     *
+     * Verifies that the source planet actually has each ship in the required quantity.
+     * Returns null if any required ship is missing (preventing a failed mission dispatch).
+     *
+     * @param array<int, int> $ships
+     * @param PlanetService $planet
+     * @return UnitCollection|null
+     */
+    private function buildUnitCollection(array $ships, PlanetService $planet): ?UnitCollection
+    {
+        $units = new UnitCollection();
+
+        foreach ($ships as $objectId => $amount) {
+            try {
+                $unitObject = ObjectService::getObjectById($objectId);
+                $available = $planet->getObjectAmount($unitObject->machine_name);
+                if ($available < $amount) {
+                    return null;
+                }
+                $units->addUnit($unitObject, $amount);
+            } catch (\Throwable $e) {
+                Log::channel('ai')->warning('Failed to resolve ship object for fleet action', [
+                    'object_id' => $objectId,
+                    'planet_id' => $planet->getPlanetId(),
+                    'error'     => $e->getMessage(),
+                ]);
+                return null;
+            }
+        }
+
+        return $units;
     }
 
     /**

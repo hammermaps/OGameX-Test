@@ -101,6 +101,6 @@ class NeutralStrategy extends AbstractStrategy
 
     public function shouldExpand(PlayerService $player): bool
     {
-        return $player->planets->count() < 5;
+        return $player->planets->planetCount() < 5;
     }
 }

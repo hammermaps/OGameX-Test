@@ -18,9 +18,10 @@ interface AiPlayerStrategyInterface
      * Decide which building to construct next on the given planet.
      *
      * @param PlanetService $planet
+     * @param PlayerService $player
      * @return int|null The building object ID, or null if nothing should be built.
      */
-    public function decideBuildingPriority(PlanetService $planet): ?int;
+    public function decideBuildingPriority(PlanetService $planet, PlayerService $player): ?int;
 
     /**
      * Decide which research to start next.
@@ -69,6 +70,26 @@ interface AiPlayerStrategyInterface
      * @return list<string>
      */
     public function getResearchPriorityList(): array;
+
+    /**
+     * Get the building priority list used for small resource-colony planets.
+     *
+     * @return list<string>
+     */
+    public function getResourceColonyBuildingPriorityList(): array;
+
+    /**
+     * Determine whether the given planet should be treated as a resource colony.
+     *
+     * A resource colony is a non-homeworld planet with limited building fields that
+     * is best specialized for pure resource production and transport, rather than
+     * carrying the full infrastructure (shipyard, research lab, etc.).
+     *
+     * @param PlanetService $planet
+     * @param PlayerService $player
+     * @return bool
+     */
+    public function isResourceColony(PlanetService $planet, PlayerService $player): bool;
 
     /**
      * Check whether the given resource cost exceeds the planet's current storage capacity

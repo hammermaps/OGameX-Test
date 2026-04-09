@@ -67,24 +67,104 @@ class AiPlayerTargetService
     }
 
     /**
-     * Find coordinates for potential colonization.
+     * Find a suitable colonization target near the player's homeworld.
+     *
+     * Prefers orbital positions 4–12 (which tend to have larger planet sizes)
+     * and avoids galaxy/system positions already occupied by the player's
+     * existing planets.
      *
      * @param PlayerService $player
      * @return array{galaxy: int, system: int, position: int}|null
      */
     public function findColonizationTarget(PlayerService $player): ?array
     {
-        $homePlanet = $player->planets->current();
-        $coords = $homePlanet->getPlanetCoordinates();
+        // Use the homeworld (lowest ID) as the reference for nearby-system calculations.
+        $referenceCoords = $this->getHomeworldCoordinates($player);
+        if ($referenceCoords === null) {
+            return null;
+        }
 
-        // Pick a random nearby system and position for colonization
-        $system = max(1, $coords->system + rand(-20, 20));
-        $position = rand(4, 12); // Middle positions tend to have better planet sizes.
+        // Collect all positions already occupied by the player to avoid collisions.
+        $occupiedPositions = [];
+        foreach ($player->planets->allPlanets() as $planet) {
+            $c = $planet->getPlanetCoordinates();
+            $occupiedPositions[] = $c->galaxy . ':' . $c->system . ':' . $c->position;
+        }
 
-        return [
-            'galaxy' => $coords->galaxy,
-            'system' => $system,
-            'position' => $position,
-        ];
+        // Try up to 10 random candidates, picking the first unoccupied one.
+        for ($attempt = 0; $attempt < 10; $attempt++) {
+            $system   = max(1, $referenceCoords->system + rand(-20, 20));
+            $position = rand(4, 12); // positions 4-12 tend to yield larger planets
+
+            $key = $referenceCoords->galaxy . ':' . $system . ':' . $position;
+            if (!in_array($key, $occupiedPositions, true)) {
+                return [
+                    'galaxy'   => $referenceCoords->galaxy,
+                    'system'   => $system,
+                    'position' => $position,
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Find a colonization target optimized for large planet size (Miner profile).
+     *
+     * Prefers the central positions 6–10 which statistically yield the most building
+     * fields, and avoids positions already owned by the player.
+     *
+     * @param PlayerService $player
+     * @return array{galaxy: int, system: int, position: int}|null
+     */
+    public function findLargePlanetColonizationTarget(PlayerService $player): ?array
+    {
+        $referenceCoords = $this->getHomeworldCoordinates($player);
+        if ($referenceCoords === null) {
+            return null;
+        }
+
+        $occupiedPositions = [];
+        foreach ($player->planets->allPlanets() as $planet) {
+            $c = $planet->getPlanetCoordinates();
+            $occupiedPositions[] = $c->galaxy . ':' . $c->system . ':' . $c->position;
+        }
+
+        for ($attempt = 0; $attempt < 10; $attempt++) {
+            $system   = max(1, $referenceCoords->system + rand(-20, 20));
+            $position = rand(6, 10); // optimal range for large planets
+
+            $key = $referenceCoords->galaxy . ':' . $system . ':' . $position;
+            if (!in_array($key, $occupiedPositions, true)) {
+                return [
+                    'galaxy'   => $referenceCoords->galaxy,
+                    'system'   => $system,
+                    'position' => $position,
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Get the homeworld coordinates by finding the planet with the lowest ID.
+     *
+     * Returns null when the player has no planets.
+     *
+     * @param PlayerService $player
+     * @return \OGame\Models\Planet\Coordinate|null
+     */
+    private function getHomeworldCoordinates(PlayerService $player): ?\OGame\Models\Planet\Coordinate
+    {
+        $homeworld = null;
+        foreach ($player->planets->allPlanets() as $planet) {
+            if ($homeworld === null || $planet->getPlanetId() < $homeworld->getPlanetId()) {
+                $homeworld = $planet;
+            }
+        }
+
+        return $homeworld?->getPlanetCoordinates();
     }
 }
