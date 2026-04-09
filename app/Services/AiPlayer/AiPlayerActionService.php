@@ -211,6 +211,16 @@ class AiPlayerActionService
         string $status,
         ?string $errorMessage = null,
     ): void {
+        // Write failures and errors to the dedicated AI log channel for debugging.
+        if ($status === 'failed' || $errorMessage !== null) {
+            Log::channel('ai')->error('AI player action failed', [
+                'ai_player_id' => $aiPlayer->id,
+                'action_type' => $actionType,
+                'action_data' => $actionData,
+                'error_message' => $errorMessage,
+            ]);
+        }
+
         try {
             AiPlayerLog::create([
                 'ai_player_id' => $aiPlayer->id,
@@ -221,7 +231,11 @@ class AiPlayerActionService
                 'created_at' => now(),
             ]);
         } catch (Exception $e) {
-            Log::error('Failed to log AI player action: ' . $e->getMessage());
+            Log::channel('ai')->error('Failed to persist AI player action log: ' . $e->getMessage(), [
+                'ai_player_id' => $aiPlayer->id,
+                'action_type' => $actionType,
+                'status' => $status,
+            ]);
         }
     }
 }

@@ -2,6 +2,7 @@
 
 namespace OGame\Services\AiPlayer\Strategies;
 
+use Illuminate\Support\Facades\Log;
 use OGame\Services\ObjectService;
 use OGame\Services\PlanetService;
 use OGame\Services\PlayerService;
@@ -90,7 +91,12 @@ abstract class AbstractStrategy implements AiPlayerStrategyInterface
             }
 
             return true;
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            Log::channel('ai')->warning('Failed to check build requirements for object', [
+                'machine_name' => $machineName,
+                'planet_id' => $planet->getPlanetId(),
+                'error' => $e->getMessage(),
+            ]);
             return false;
         }
     }
@@ -102,7 +108,12 @@ abstract class AbstractStrategy implements AiPlayerStrategyInterface
     {
         try {
             return ObjectService::objectRequirementsMet($machineName, $planet);
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            Log::channel('ai')->warning('Failed to check research requirements for object', [
+                'machine_name' => $machineName,
+                'planet_id' => $planet->getPlanetId(),
+                'error' => $e->getMessage(),
+            ]);
             return false;
         }
     }

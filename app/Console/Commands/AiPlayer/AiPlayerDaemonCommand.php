@@ -6,6 +6,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 use OGame\Models\AiDaemonStatus;
 use OGame\Models\AiPlayer;
+use OGame\Models\AiPlayerLog;
 use OGame\Services\AiPlayer\AiPlayerActionService;
 use OGame\Services\AiPlayer\AiPlayerService;
 
@@ -77,7 +78,11 @@ class AiPlayerDaemonCommand extends Command
             } catch (\Throwable $e) {
                 $errorMessage = "[Cycle {$cycle}] Error: " . $e->getMessage();
                 $this->error($errorMessage);
-                Log::error('AI Daemon error: ' . $e->getMessage(), ['exception' => $e]);
+                Log::channel('ai')->error('AI daemon cycle error', [
+                    'cycle' => $cycle,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
 
                 $daemonStatus->error_log = $errorMessage;
                 $daemonStatus->save();
@@ -134,10 +139,25 @@ class AiPlayerDaemonCommand extends Command
             } catch (\Throwable $e) {
                 // Individual player errors should not stop the daemon
                 $this->warn("Error processing AI player #{$aiPlayer->id}: " . $e->getMessage());
-                Log::warning('AI player processing error', [
+                Log::channel('ai')->warning('AI player processing error', [
                     'ai_player_id' => $aiPlayer->id,
                     'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
                 ]);
+
+                // Persist the error to the database so it is visible in the admin UI
+                try {
+                    AiPlayerLog::create([
+                        'ai_player_id' => $aiPlayer->id,
+                        'action_type' => 'error',
+                        'action_data' => ['exception' => get_class($e)],
+                        'status' => 'failed',
+                        'error_message' => $e->getMessage(),
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable) {
+                    // DB logging failed – already captured in the file log above
+                }
             }
         }
 
