@@ -239,4 +239,86 @@ class AiPlayerAdminController extends OGameController
             'filterStatus' => $request->input('status', ''),
         ]);
     }
+
+    /**
+     * Global activity log across all AI players, separated by account.
+     */
+    public function activityLog(Request $request): View
+    {
+        $query = AiPlayerLog::with(['aiPlayer.user']);
+
+        // Filter by specific AI player / account
+        if ($request->filled('ai_player_id')) {
+            $query->where('ai_player_id', (int) $request->input('ai_player_id'));
+        }
+
+        // Filter by action type
+        if ($request->filled('action_type')) {
+            $query->where('action_type', $request->input('action_type'));
+        }
+
+        // Filter by status
+        if ($request->filled('status')) {
+            $query->where('status', $request->input('status'));
+        }
+
+        // Filter by date range
+        if ($request->filled('date_from')) {
+            $query->where('created_at', '>=', $request->input('date_from') . ' 00:00:00');
+        }
+        if ($request->filled('date_to')) {
+            $query->where('created_at', '<=', $request->input('date_to') . ' 23:59:59');
+        }
+
+        $logs = $query->orderBy('created_at', 'desc')->paginate(100)->withQueryString();
+
+        // All AI players for the filter dropdown
+        $aiPlayers = AiPlayer::with('user')->orderBy('id')->get();
+
+        // Per-account statistics: one query for totals, one for today's breakdown
+        $totalsByPlayer = AiPlayerLog::selectRaw('ai_player_id, COUNT(*) as total_actions')
+            ->groupBy('ai_player_id')
+            ->pluck('total_actions', 'ai_player_id');
+
+        $todayStart = now()->startOfDay();
+        $todayStatsByPlayer = AiPlayerLog::selectRaw(
+            'ai_player_id,'
+            . ' COUNT(*) as actions_today,'
+            . ' SUM(CASE WHEN status = \'success\' THEN 1 ELSE 0 END) as success_today,'
+            . ' SUM(CASE WHEN status = \'failed\' THEN 1 ELSE 0 END) as failed_today,'
+            . ' SUM(CASE WHEN status = \'skipped\' THEN 1 ELSE 0 END) as skipped_today'
+        )
+            ->where('created_at', '>=', $todayStart)
+            ->groupBy('ai_player_id')
+            ->get()
+            ->keyBy('ai_player_id');
+
+        $accountStats = $aiPlayers->map(function (AiPlayer $player) use ($totalsByPlayer, $todayStatsByPlayer): array {
+            $todayRow = $todayStatsByPlayer->get($player->id);
+
+            return [
+                'id' => $player->id,
+                'username' => $player->user?->username ?? 'N/A',
+                'profile' => $player->profile,
+                'is_active' => $player->is_active,
+                'total_actions' => (int) ($totalsByPlayer[$player->id] ?? 0),
+                'actions_today' => (int) ($todayRow?->actions_today ?? 0),
+                'success_today' => (int) ($todayRow?->success_today ?? 0),
+                'failed_today' => (int) ($todayRow?->failed_today ?? 0),
+                'skipped_today' => (int) ($todayRow?->skipped_today ?? 0),
+                'last_action_at' => $player->last_action_at,
+            ];
+        });
+
+        return view('ingame.admin.ai-players.activity-log')->with([
+            'logs' => $logs,
+            'aiPlayers' => $aiPlayers,
+            'accountStats' => $accountStats,
+            'filterAiPlayerId' => (int) $request->input('ai_player_id', 0),
+            'filterActionType' => $request->input('action_type', ''),
+            'filterStatus' => $request->input('status', ''),
+            'filterDateFrom' => $request->input('date_from', ''),
+            'filterDateTo' => $request->input('date_to', ''),
+        ]);
+    }
 }

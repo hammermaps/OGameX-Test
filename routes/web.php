@@ -289,6 +289,7 @@ Route::middleware(['auth', 'globalgame', 'locale', 'admin'])->group(function () 
     Route::get('/admin/ai-players/create', [AiPlayerAdminController::class, 'create'])->name('admin.ai-players.create');
     Route::post('/admin/ai-players', [AiPlayerAdminController::class, 'store'])->name('admin.ai-players.store');
     Route::get('/admin/ai-players/daemon', [AiPlayerAdminController::class, 'daemon'])->name('admin.ai-players.daemon');
+    Route::get('/admin/ai-players/activity-log', [AiPlayerAdminController::class, 'activityLog'])->name('admin.ai-players.activity-log');
     Route::get('/admin/ai-players/{id}', [AiPlayerAdminController::class, 'show'])->name('admin.ai-players.show');
     Route::put('/admin/ai-players/{id}', [AiPlayerAdminController::class, 'update'])->name('admin.ai-players.update');
     Route::delete('/admin/ai-players/{id}', [AiPlayerAdminController::class, 'destroy'])->name('admin.ai-players.destroy');
