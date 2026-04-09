@@ -2,6 +2,12 @@
 
 All notable changes to OGameX are documented in this file.
 
+## [0.13.1] - 2026-04-09
+
+### Added
+- **German (de) Translations**: Complete German language files for all in-game modules (buddies, external, facilities, galaxy, in-game UI, layout, merchant, messages, overview, resources, wreck field).
+- **AI Player Error Logging**: `AiPlayerLog` model with dedicated `error_message` column and `ai_player_logs` database table for full error persistence and a dedicated error channel in the AI logger.
+
 ## [0.13.0] - 2026-04-09
 
 ### Added
