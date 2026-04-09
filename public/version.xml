@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<release>
+    <version>0.13.0</version>
+    <release_date>2026-04-09</release_date>
+    <download_url>https://github.com/hammermaps/OGameX-Test/releases/tag/v0.13.0</download_url>
+    <changelog_url>https://github.com/hammermaps/OGameX-Test/blob/main/CHANGELOG.md</changelog_url>
+    <description>AI Player System, Server Administration Panel, Changelog &amp; Update Check admin pages.</description>
+</release>

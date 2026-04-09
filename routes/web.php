@@ -2,10 +2,12 @@
 
 use Illuminate\Support\Facades\Route;
 use OGame\Http\Controllers\Admin\AiPlayerAdminController;
+use OGame\Http\Controllers\Admin\ChangelogController as AdminChangelogController;
 use OGame\Http\Controllers\Admin\DeveloperShortcutsController;
 use OGame\Http\Controllers\Admin\RulesController as AdminRulesController;
 use OGame\Http\Controllers\Admin\ServerAdministrationController;
 use OGame\Http\Controllers\Admin\ServerSettingsController as AdminServerSettingsController;
+use OGame\Http\Controllers\Admin\UpdateCheckController as AdminUpdateCheckController;
 use OGame\Http\Controllers\AllianceController;
 use OGame\Http\Controllers\AllianceDepotController;
 use OGame\Http\Controllers\BuddiesController;
@@ -293,4 +295,11 @@ Route::middleware(['auth', 'globalgame', 'locale', 'admin'])->group(function () 
     Route::post('/admin/ai-players/{id}/toggle', [AiPlayerAdminController::class, 'toggle'])->name('admin.ai-players.toggle');
     Route::post('/admin/ai-players/{id}/impersonate', [AiPlayerAdminController::class, 'impersonate'])->name('admin.ai-players.impersonate');
     Route::get('/admin/ai-players/{id}/logs', [AiPlayerAdminController::class, 'logs'])->name('admin.ai-players.logs');
+
+    // Changelog
+    Route::get('/admin/changelog', [AdminChangelogController::class, 'index'])->name('admin.changelog.index');
+
+    // Update check
+    Route::get('/admin/update-check', [AdminUpdateCheckController::class, 'index'])->name('admin.update-check.index');
+    Route::get('/admin/update-check/fetch', [AdminUpdateCheckController::class, 'check'])->name('admin.update-check.fetch');
 });
