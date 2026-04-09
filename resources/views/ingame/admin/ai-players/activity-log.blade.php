@@ -166,7 +166,7 @@
                                             @if ($log->error_message)
                                                 <span style="color: #cc0000;">{{ $log->error_message }}</span>
                                             @elseif ($log->action_data)
-                                                {{ json_encode($log->action_data) }}
+                                                {{ json_encode($log->action_data, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) }}
                                             @else
                                                 -
                                             @endif

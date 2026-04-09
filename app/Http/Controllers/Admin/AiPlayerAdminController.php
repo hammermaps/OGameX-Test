@@ -264,10 +264,16 @@ class AiPlayerAdminController extends OGameController
 
         // Filter by date range
         if ($request->filled('date_from')) {
-            $query->where('created_at', '>=', $request->input('date_from') . ' 00:00:00');
+            $dateFrom = \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $request->input('date_from'));
+            if ($dateFrom !== false) {
+                $query->where('created_at', '>=', $dateFrom->startOfDay());
+            }
         }
         if ($request->filled('date_to')) {
-            $query->where('created_at', '<=', $request->input('date_to') . ' 23:59:59');
+            $dateTo = \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $request->input('date_to'));
+            if ($dateTo !== false) {
+                $query->where('created_at', '<=', $dateTo->endOfDay());
+            }
         }
 
         $logs = $query->orderBy('created_at', 'desc')->paginate(100)->withQueryString();
