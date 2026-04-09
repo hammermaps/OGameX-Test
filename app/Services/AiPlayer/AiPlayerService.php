@@ -93,14 +93,15 @@ class AiPlayerService
             return false;
         }
 
-        $user = User::find($aiPlayer->user_id);
+        $userId = $aiPlayer->user_id;
 
         // Delete AI player record (logs cascade)
         $aiPlayer->delete();
 
-        // Delete user account
-        if ($user !== null) {
-            $user->delete();
+        // Delete user account and all associated data (planets, messages, tech, etc.)
+        if ($userId !== null) {
+            $playerService = $this->playerServiceFactory->make($userId);
+            $playerService->delete();
         }
 
         return true;
