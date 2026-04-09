@@ -9,6 +9,7 @@ use OGame\Models\AiPlayer;
 use OGame\Models\AiPlayerLog;
 use OGame\Services\AiPlayer\Strategies\AiPlayerStrategyInterface;
 use OGame\Services\BuildingQueueService;
+use OGame\Services\ObjectService;
 use OGame\Services\PlanetService;
 use OGame\Services\PlayerService;
 use OGame\Services\ResearchQueueService;
@@ -187,6 +188,28 @@ class AiPlayerActionService
         $actionsCount = 0;
 
         foreach ($units as $objectId => $amount) {
+            // Skip units whose per-unit cost exceeds storage capacity – such units can never
+            // be afforded as resources cannot accumulate beyond the storage limit.
+            try {
+                $object = ObjectService::getObjectById($objectId);
+                $cost = ObjectService::getObjectPrice($object->machine_name, $planet);
+                if ($strategy->getStorageBottleneck($cost, $planet) !== null) {
+                    Log::channel('ai')->info('Skipping unit build – cost exceeds storage capacity', [
+                        'planet_id' => $planet->getPlanetId(),
+                        'object_id' => $objectId,
+                    ]);
+                    continue;
+                }
+            } catch (\Throwable $e) {
+                // If we cannot determine the cost, proceed and let the queue service
+                // handle the validation failure with its own error reporting.
+                Log::channel('ai')->warning('Failed to check unit cost vs. storage', [
+                    'object_id' => $objectId,
+                    'planet_id' => $planet->getPlanetId(),
+                    'error'     => $e->getMessage(),
+                ]);
+            }
+
             try {
                 $this->unitQueueService->add($planet, $objectId, $amount);
                 $this->logAction($aiPlayer, 'unit_build', [
@@ -203,7 +226,6 @@ class AiPlayerActionService
                 ], 'failed', $e->getMessage());
             }
         }
-
         return $actionsCount;
     }
 
