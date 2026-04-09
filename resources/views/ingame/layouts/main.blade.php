@@ -49,6 +49,7 @@
 
     <link rel="stylesheet" href="{{ mix('css/ingame.css') }}">
     <script src="{{ mix('js/ingame.min.js') }}"></script>
+    @stack('head')
 
     <script type="text/javascript">
         // Define timerHandler globally to prevent simpleCountdown errors
@@ -1966,5 +1967,6 @@ However, the Space Dock's engineers think that some of the remains can be salvag
         'colorPicker'        => ['ok' => __('t_ingame.messages.bbcode_ok'), 'cancel' => __('t_ingame.messages.bbcode_cancel'), 'rgbR' => 'R', 'rgbG' => 'G', 'rgbB' => 'B'],
         'backgroundImagePicker' => ['ok' => __('t_ingame.messages.bbcode_ok'), 'repeatX' => __('t_ingame.messages.bbcode_repeat_x'), 'repeatY' => __('t_ingame.messages.bbcode_repeat_y')],
     ]) !!};</script>
+    @stack('scripts')
 </body>
 </html>

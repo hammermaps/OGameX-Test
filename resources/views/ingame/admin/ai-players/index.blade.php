@@ -1,5 +1,26 @@
 @extends('ingame.layouts.main')
 
+@push('head')
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/2.0.8/css/dataTables.bootstrap5.min.css">
+@endpush
+
+@push('scripts')
+    <script src="https://cdn.datatables.net/2.0.8/js/dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/2.0.8/js/dataTables.bootstrap5.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            $('#ai-players-table').DataTable({
+                pageLength: 25,
+                order: [[0, 'asc']],
+                language: {
+                    emptyTable: '{{ __('No AI players created yet.') }}'
+                }
+            });
+        });
+    </script>
+@endpush
+
 @section('content')
 
     @if (session('status'))
@@ -86,12 +107,8 @@
 
                     {{-- ===== AI PLAYERS TABLE ===== --}}
                     <p class="box_highlight textCenter no_buddies">@lang('AI Players')</p>
-                    @if ($aiPlayers->isEmpty())
-                        <div class="group bborder" style="display: block;">
-                            <p style="text-align: center; padding: 10px;">@lang('No AI players created yet.')</p>
-                        </div>
-                    @else
-                        <table class="table569" style="width: 100%;">
+                    <div class="group bborder" style="display: block; padding: 10px;">
+                        <table id="ai-players-table" class="table table-striped table-hover" style="width: 100%;">
                             <thead>
                                 <tr>
                                     <th>@lang('Name')</th>
@@ -139,7 +156,7 @@
                                 @endforeach
                             </tbody>
                         </table>
-                    @endif
+                    </div>
 
                 </div>
             </div>
