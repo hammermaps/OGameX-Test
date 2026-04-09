@@ -9,6 +9,7 @@ use OGame\Models\AiPlayer;
 use OGame\Models\AiPlayerLog;
 use OGame\Services\AiPlayer\Strategies\AiPlayerStrategyInterface;
 use OGame\Services\BuildingQueueService;
+use OGame\Services\ObjectService;
 use OGame\Services\PlanetService;
 use OGame\Services\PlayerService;
 use OGame\Services\ResearchQueueService;
@@ -187,6 +188,16 @@ class AiPlayerActionService
         $actionsCount = 0;
 
         foreach ($units as $objectId => $amount) {
+            // Skip units whose per-unit cost exceeds storage capacity – such units can never
+            // be afforded as resources cannot accumulate beyond the storage limit.
+            if ($this->unitCostExceedsStorage($objectId, $planet)) {
+                Log::channel('ai')->info('Skipping unit build – cost exceeds storage capacity', [
+                    'planet_id' => $planet->getPlanetId(),
+                    'object_id' => $objectId,
+                ]);
+                continue;
+            }
+
             try {
                 $this->unitQueueService->add($planet, $objectId, $amount);
                 $this->logAction($aiPlayer, 'unit_build', [
@@ -203,8 +214,38 @@ class AiPlayerActionService
                 ], 'failed', $e->getMessage());
             }
         }
-
         return $actionsCount;
+    }
+
+    /**
+     * Check whether a unit's per-unit cost exceeds the planet's current storage capacity
+     * for any resource. If it does, the planet can never accumulate enough resources to
+     * produce the unit and it should be skipped.
+     */
+    private function unitCostExceedsStorage(int $objectId, PlanetService $planet): bool
+    {
+        try {
+            $object = ObjectService::getObjectById($objectId);
+            $cost = ObjectService::getObjectPrice($object->machine_name, $planet);
+
+            if ($cost->metal->get() > 0 && $planet->metalStorage()->get() > 0 && $cost->metal->get() > $planet->metalStorage()->get()) {
+                return true;
+            }
+            if ($cost->crystal->get() > 0 && $planet->crystalStorage()->get() > 0 && $cost->crystal->get() > $planet->crystalStorage()->get()) {
+                return true;
+            }
+            if ($cost->deuterium->get() > 0 && $planet->deuteriumStorage()->get() > 0 && $cost->deuterium->get() > $planet->deuteriumStorage()->get()) {
+                return true;
+            }
+        } catch (\Throwable $e) {
+            Log::channel('ai')->warning('Failed to check unit cost vs. storage', [
+                'object_id' => $objectId,
+                'planet_id' => $planet->getPlanetId(),
+                'error'     => $e->getMessage(),
+            ]);
+        }
+
+        return false;
     }
 
     /**
