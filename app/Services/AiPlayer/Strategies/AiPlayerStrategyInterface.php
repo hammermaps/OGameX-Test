@@ -2,6 +2,7 @@
 
 namespace OGame\Services\AiPlayer\Strategies;
 
+use OGame\Models\Resources;
 use OGame\Services\PlanetService;
 use OGame\Services\PlayerService;
 
@@ -68,4 +69,15 @@ interface AiPlayerStrategyInterface
      * @return list<string>
      */
     public function getResearchPriorityList(): array;
+
+    /**
+     * Check whether the given resource cost exceeds the planet's current storage capacity
+     * for any resource. Returns the object ID of the first storage building that should be
+     * upgraded to resolve the bottleneck, or null if storage is sufficient.
+     *
+     * @param Resources $cost
+     * @param PlanetService $planet
+     * @return int|null
+     */
+    public function getStorageBottleneck(Resources $cost, PlanetService $planet): ?int;
 }

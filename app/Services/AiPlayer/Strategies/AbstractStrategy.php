@@ -167,7 +167,7 @@ abstract class AbstractStrategy implements AiPlayerStrategyInterface
      * for any resource. Returns the object ID of the first storage building that should be
      * upgraded to resolve the bottleneck, or null if storage is sufficient.
      */
-    protected function getStorageBottleneck(Resources $cost, PlanetService $planet): ?int
+    public function getStorageBottleneck(Resources $cost, PlanetService $planet): ?int
     {
         $checks = [
             [$cost->metal->get(), $planet->metalStorage()->get(), self::STORAGE_BUILDINGS['metal']],
