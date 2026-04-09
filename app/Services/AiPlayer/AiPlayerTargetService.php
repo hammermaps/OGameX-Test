@@ -77,18 +77,14 @@ class AiPlayerTargetService
         $homePlanet = $player->planets->current();
         $coords = $homePlanet->getPlanetCoordinates();
 
-        // Try positions in nearby systems
-        for ($attempt = 0; $attempt < 10; $attempt++) {
-            $system = max(1, $coords->system + rand(-20, 20));
-            $position = rand(4, 12); // Middle positions tend to have better planet sizes.
+        // Pick a random nearby system and position for colonization
+        $system = max(1, $coords->system + rand(-20, 20));
+        $position = rand(4, 12); // Middle positions tend to have better planet sizes.
 
-            return [
-                'galaxy' => $coords->galaxy,
-                'system' => $system,
-                'position' => $position,
-            ];
-        }
-
-        return null;
+        return [
+            'galaxy' => $coords->galaxy,
+            'system' => $system,
+            'position' => $position,
+        ];
     }
 }

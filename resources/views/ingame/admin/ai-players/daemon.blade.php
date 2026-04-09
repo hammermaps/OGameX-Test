@@ -139,6 +139,7 @@
 
                     <div class="group bborder" style="display: block; text-align: center; padding: 10px;">
                         <a href="{{ route('admin.ai-players.index') }}" class="btn_blue">@lang('Back to AI Players')</a>
+                        <button id="toggleAutoRefresh" class="btn_blue" onclick="toggleAutoRefresh()">@lang('Auto-Refresh: OFF')</button>
                     </div>
 
                 </div>
@@ -146,11 +147,27 @@
         </div>
     </div>
 
-    {{-- Auto-refresh every 10 seconds --}}
+    {{-- Optional auto-refresh with toggle --}}
     <script>
-        setTimeout(function() {
-            location.reload();
-        }, 10000);
+        var autoRefreshEnabled = false;
+        var autoRefreshTimer = null;
+
+        function toggleAutoRefresh() {
+            autoRefreshEnabled = !autoRefreshEnabled;
+            var btn = document.getElementById('toggleAutoRefresh');
+            if (autoRefreshEnabled) {
+                btn.textContent = '@lang("Auto-Refresh: ON")';
+                autoRefreshTimer = setInterval(function() {
+                    location.reload();
+                }, 10000);
+            } else {
+                btn.textContent = '@lang("Auto-Refresh: OFF")';
+                if (autoRefreshTimer) {
+                    clearInterval(autoRefreshTimer);
+                    autoRefreshTimer = null;
+                }
+            }
+        }
     </script>
 
 @endsection
