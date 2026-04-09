@@ -11,7 +11,7 @@ Please include a summary of the changes made to OGameX and their purpose. Clearl
 Fixes #[issue-number]
 
 ## Checklist
-Before submitting this pull request, ensure all following requirements as outlined in [CONTRIBUTING.md](https://github.com/lanedirt/OGameX/blob/main/CONTRIBUTING.md) are met:
+Before submitting this pull request, ensure all following requirements as outlined in [CONTRIBUTING.md](https://github.com/hammermaps/OGameX-Test/blob/main/CONTRIBUTING.md) are met:
 
 - [ ] **Automated Refactoring:** Rector has been run and no outstanding issues remain.
 - [ ] **Code Standards:** Code adheres to PSR-12 coding standards. Verified with Laravel Pint.

@@ -3,10 +3,10 @@
 🌟 **If you find this project useful, please consider giving it a star!** 🌟
 
 </div>
-<p align="center"><img align="center" src="https://github.com/lanedirt/OGameX/assets/6917405/c81061d5-0310-4574-a91d-1ea155b567c0" alt="OGameX logo" /></p>
+<p align="center"><img align="center" src="https://github.com/hammermaps/OGameX-Test/assets/6917405/c81061d5-0310-4574-a91d-1ea155b567c0" alt="OGameX logo" /></p>
 
 <p align="center">
-<a href="https://main.ogamex.dev">Live demo 🚀</a> • <a href="#installation">Installation 📦</a> • <a href="https://github.com/lanedirt/OGameX/blob/main/CONTRIBUTING.md">Contributing 💻</a>
+<a href="https://main.ogamex.dev">Live demo 🚀</a> • <a href="#installation">Installation 📦</a> • <a href="https://github.com/hammermaps/OGameX-Test/blob/main/CONTRIBUTING.md">Contributing 💻</a>
 </p>
 
 
@@ -16,17 +16,17 @@
 
 <div align="center">
 
-[<img src="https://img.shields.io/github/v/release/lanedirt/OGameX?include_prereleases&logo=github">](https://github.com/lanedirt/OGameX/releases)
-[<img src="https://img.shields.io/github/actions/workflow/status/lanedirt/OGameX/run-docker-compose-prod.yml?label=docker-compose%20build">](https://github.com/lanedirt/OGameX/actions/workflows/run-docker-compose-prod.yml)
-[<img src="https://img.shields.io/github/actions/workflow/status/lanedirt/OGameX/run-tests-docker-compose.yml?label=tests">](https://github.com/lanedirt/OGameX/actions/workflows/run-tests-docker-compose.yml)
-[<img src="https://img.shields.io/github/actions/workflow/status/lanedirt/OGameX/run-phpstan-code-analysis.yml?label=static%20code%20analysis">](https://github.com/lanedirt/OGameX/actions/workflows/run-phpstan-code-analysis.yml)
-[<img src="https://img.shields.io/github/actions/workflow/status/lanedirt/OGameX/run-laravel-pint-code-style-checker.yml?label=psr-12%20code%20style">](https://github.com/lanedirt/OGameX/actions/workflows/run-laravel-pint-code-style-checker.yml)
+[<img src="https://img.shields.io/github/v/release/hammermaps/OGameX-Test?include_prereleases&logo=github">](https://github.com/hammermaps/OGameX-Test/releases)
+[<img src="https://img.shields.io/github/actions/workflow/status/hammermaps/OGameX-Test/run-docker-compose-prod.yml?label=docker-compose%20build">](https://github.com/hammermaps/OGameX-Test/actions/workflows/run-docker-compose-prod.yml)
+[<img src="https://img.shields.io/github/actions/workflow/status/hammermaps/OGameX-Test/run-tests-docker-compose.yml?label=tests">](https://github.com/hammermaps/OGameX-Test/actions/workflows/run-tests-docker-compose.yml)
+[<img src="https://img.shields.io/github/actions/workflow/status/hammermaps/OGameX-Test/run-phpstan-code-analysis.yml?label=static%20code%20analysis">](https://github.com/hammermaps/OGameX-Test/actions/workflows/run-phpstan-code-analysis.yml)
+[<img src="https://img.shields.io/github/actions/workflow/status/hammermaps/OGameX-Test/run-laravel-pint-code-style-checker.yml?label=psr-12%20code%20style">](https://github.com/hammermaps/OGameX-Test/actions/workflows/run-laravel-pint-code-style-checker.yml)
 
 </div>
 
 <div align="center">
 
-[![good first issues open](https://img.shields.io/github/issues/lanedirt/OGameX/good%20first%20issue.svg?logo=github)](https://github.com/lanedirt/OGameX/issues?q=is%3Aopen+is%3Aissue+label%3A"good+first+issue")
+[![good first issues open](https://img.shields.io/github/issues/hammermaps/OGameX-Test/good%20first%20issue.svg?logo=github)](https://github.com/hammermaps/OGameX-Test/issues?q=is%3Aopen+is%3Aissue+label%3A"good+first+issue")
 [<img alt="Discord" src="https://img.shields.io/discord/1278814992988110922?logo=discord&logoColor=%237289da&label=join%20discord%20chat&color=%237289da">](https://discord.gg/HJ4QRxxB5N)
 
 </div>
@@ -109,9 +109,9 @@ Contributions are warmly welcomed, whether in development, testing, or spreading
 
 A good starting point are issues labeled as "good first issue".
 
-[![good first issues open](https://img.shields.io/github/issues/lanedirt/OGameX/good%20first%20issue.svg?logo=github)](https://github.com/lanedirt/OGameX/issues?q=is%3Aopen+is%3Aissue+label%3A"good+first+issue")
+[![good first issues open](https://img.shields.io/github/issues/hammermaps/OGameX-Test/good%20first%20issue.svg?logo=github)](https://github.com/hammermaps/OGameX-Test/issues?q=is%3Aopen+is%3Aissue+label%3A"good+first+issue")
 
-Read the [CONTRIBUTING.md](https://github.com/lanedirt/OGameX/blob/main/CONTRIBUTING.md) file for more information.
+Read the [CONTRIBUTING.md](https://github.com/hammermaps/OGameX-Test/blob/main/CONTRIBUTING.md) file for more information.
 
 ## <a name="disclaimer"></a> 📓 6. Disclaimer
 
@@ -129,8 +129,8 @@ Please note that performance of the development mode is slow on Windows (compare
 
 1. Clone the repository.
   ```
-  $ git clone https://github.com/lanedirt/OGameX.git
-  $ cd OGameX
+  $ git clone https://github.com/hammermaps/OGameX-Test.git
+  $ cd OGameX-Test
   ```
 
 2. Launch the project using Docker Compose:
@@ -157,8 +157,8 @@ The instructions below are for Linux. OGameX should also work under Docker for W
 
 1. Clone the git repo.
   ```
-  $ git clone https://github.com/lanedirt/OGameX.git
-  $ cd OGameX
+  $ git clone https://github.com/hammermaps/OGameX-Test.git
+  $ cd OGameX-Test
   ```
 
 2. Copy `.env.example-prod` to `.env`.
@@ -265,4 +265,4 @@ The following projects either host OGameX servers or are based on the OGameX cor
 | OGameX Combat Simulator | High-performance OGame combat simulator based on the OGameX Rust battle engine. Features a blazing fast Rust-powered WASM engine (~200x faster than PHP), client-side calculations that work offline, and accurate battle simulations based on OGameX formulas. | [GitHub](https://github.com/rbardtke/OgameX-Combat-Simulator) | Open Source (MIT) |
 | Space Rivals | Built on top of the OGameX core with many different customizations and features. | https://space-rivals.net | Not Open Source |
 
-Do you want your own OGameX-related project to be listed here? Create an issue in the [GitHub issues page](https://github.com/lanedirt/OGameX/issues) and provide details about your project.
+Do you want your own OGameX-related project to be listed here? Create an issue in the [GitHub issues page](https://github.com/hammermaps/OGameX-Test/issues) and provide details about your project.

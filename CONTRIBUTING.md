@@ -12,11 +12,11 @@ Before submitting a new issue, please check the issues and pull requests to avoi
 If you have an idea or suggestion, feel free to start a discussion on the [Discussions](https://github.com/lanedirt/ogamex/discussions) page. This is a great way to get feedback and discuss new ideas before submitting a pull request.
 
 ## Pull Requests
-If you would like to contribute via pull requests, a good way to get started is to filter the issues list by the [good first issues](https://github.com/lanedirt/OGameX/labels/good%20first%20issue) label. This label is used for issues that are easy to fix and a good starting point for new contributors.
+If you would like to contribute via pull requests, a good way to get started is to filter the issues list by the [good first issues](https://github.com/hammermaps/OGameX-Test/labels/good%20first%20issue) label. This label is used for issues that are easy to fix and a good starting point for new contributors.
 
-[![good first issues open](https://img.shields.io/github/issues/lanedirt/OGameX/good%20first%20issue.svg?logo=github)](https://github.com/lanedirt/OGameX/issues?q=is%3Aopen+is%3Aissue+label%3A"good+first+issue")
+[![good first issues open](https://img.shields.io/github/issues/hammermaps/OGameX-Test/good%20first%20issue.svg?logo=github)](https://github.com/hammermaps/OGameX-Test/issues?q=is%3Aopen+is%3Aissue+label%3A"good+first+issue")
 
-Refer to the [Installation section](https://github.com/lanedirt/OGameX#installation) in the main README.md for how to get your local development environment setup.
+Refer to the [Installation section](https://github.com/hammermaps/OGameX-Test#installation) in the main README.md for how to get your local development environment setup.
 
 ### Before you open a PR
 
