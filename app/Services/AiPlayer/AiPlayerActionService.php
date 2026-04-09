@@ -57,6 +57,12 @@ class AiPlayerActionService
         $playerService = $this->playerServiceFactory->make($aiPlayer->user_id, true);
         $actionsExecuted = 0;
 
+        // Update the user's last activity timestamp so the AI player does not
+        // appear as inactive/offline in the galaxy view.
+        $user = $playerService->getUser();
+        $user->time = (string) now()->timestamp;
+        $user->save();
+
         // Process each planet
         foreach ($playerService->planets->allPlanets() as $planet) {
             $actionsExecuted += $this->processPlanet($aiPlayer, $strategy, $playerService, $planet);
