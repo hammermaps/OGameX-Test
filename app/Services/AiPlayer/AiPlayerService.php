@@ -53,6 +53,13 @@ class AiPlayerService
         ]);
 
         $user->is_ai_player = true;
+
+        // Assign the character class that matches this AI profile before creating game data,
+        // so profile-dependent bonuses (e.g. Discoverer's planet size bonus) apply immediately.
+        $characterClass = $profileEnum->getPreferredCharacterClass();
+        $user->character_class = $characterClass->value;
+        $user->character_class_free_used = true;
+        $user->character_class_changed_at = now();
         $user->save();
 
         // Create initial game data
