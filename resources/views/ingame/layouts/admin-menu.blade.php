@@ -84,6 +84,7 @@
                 <li><a class="{{(Request::is('admin/server-settings') ? 'active' : '') }}" href="{{ route('admin.serversettings.index') }}">Server settings</a></li>
                 <li><a class="{{(Request::is('admin/rules') ? 'active' : '') }}" href="{{ route('admin.rules.index') }}">Rules & Legal</a></li>
                 <li><a class="{{(Request::is('admin/server-administration*') ? 'active' : '') }}" href="{{ route('admin.server-administration.index') }}">Server Administration</a></li>
+                <li><a class="{{(Request::is('admin/ai-players*') ? 'active' : '') }}" href="{{ route('admin.ai-players.index') }}">AI Players</a></li>
             </ul>
         @endif
     </div>
