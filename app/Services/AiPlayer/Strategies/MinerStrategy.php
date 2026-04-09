@@ -160,8 +160,16 @@ class MinerStrategy extends AbstractStrategy
      */
     public function isResourceColony(PlanetService $planet, PlayerService $player): bool
     {
-        $homeworld = $player->planets->first();
-        if ($homeworld !== null && $homeworld->getPlanetId() === $planet->getPlanetId()) {
+        // The homeworld is the planet with the lowest ID (created first).
+        $homeworldId = null;
+        foreach ($player->planets->allPlanets() as $p) {
+            if ($homeworldId === null || $p->getPlanetId() < $homeworldId) {
+                $homeworldId = $p->getPlanetId();
+            }
+        }
+
+        // Homeworld is never a resource colony.
+        if ($homeworldId === $planet->getPlanetId()) {
             return false;
         }
 

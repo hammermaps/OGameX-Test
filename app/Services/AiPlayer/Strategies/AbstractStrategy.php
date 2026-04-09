@@ -183,9 +183,16 @@ abstract class AbstractStrategy implements AiPlayerStrategyInterface
      */
     public function isResourceColony(PlanetService $planet, PlayerService $player): bool
     {
-        // The homeworld is never treated as a resource colony.
-        $homeworld = $player->planets->first();
-        if ($homeworld !== null && $homeworld->getPlanetId() === $planet->getPlanetId()) {
+        // The homeworld is the planet with the lowest ID (created first).  It is never
+        // treated as a resource colony regardless of its field count.
+        $homeworldId = null;
+        foreach ($player->planets->allPlanets() as $p) {
+            if ($homeworldId === null || $p->getPlanetId() < $homeworldId) {
+                $homeworldId = $p->getPlanetId();
+            }
+        }
+
+        if ($homeworldId === $planet->getPlanetId()) {
             return false;
         }
 

@@ -78,8 +78,11 @@ class AiPlayerTargetService
      */
     public function findColonizationTarget(PlayerService $player): ?array
     {
-        $homePlanet = $player->planets->current();
-        $coords = $homePlanet->getPlanetCoordinates();
+        // Use the homeworld (lowest ID) as the reference for nearby-system calculations.
+        $referenceCoords = $this->getHomeworldCoordinates($player);
+        if ($referenceCoords === null) {
+            return null;
+        }
 
         // Collect all positions already occupied by the player to avoid collisions.
         $occupiedPositions = [];
@@ -90,13 +93,13 @@ class AiPlayerTargetService
 
         // Try up to 10 random candidates, picking the first unoccupied one.
         for ($attempt = 0; $attempt < 10; $attempt++) {
-            $system   = max(1, $coords->system + rand(-20, 20));
+            $system   = max(1, $referenceCoords->system + rand(-20, 20));
             $position = rand(4, 12); // positions 4-12 tend to yield larger planets
 
-            $key = $coords->galaxy . ':' . $system . ':' . $position;
+            $key = $referenceCoords->galaxy . ':' . $system . ':' . $position;
             if (!in_array($key, $occupiedPositions, true)) {
                 return [
-                    'galaxy'   => $coords->galaxy,
+                    'galaxy'   => $referenceCoords->galaxy,
                     'system'   => $system,
                     'position' => $position,
                 ];
@@ -117,8 +120,10 @@ class AiPlayerTargetService
      */
     public function findLargePlanetColonizationTarget(PlayerService $player): ?array
     {
-        $homePlanet = $player->planets->current();
-        $coords = $homePlanet->getPlanetCoordinates();
+        $referenceCoords = $this->getHomeworldCoordinates($player);
+        if ($referenceCoords === null) {
+            return null;
+        }
 
         $occupiedPositions = [];
         foreach ($player->planets->allPlanets() as $planet) {
@@ -127,13 +132,13 @@ class AiPlayerTargetService
         }
 
         for ($attempt = 0; $attempt < 10; $attempt++) {
-            $system   = max(1, $coords->system + rand(-20, 20));
+            $system   = max(1, $referenceCoords->system + rand(-20, 20));
             $position = rand(6, 10); // optimal range for large planets
 
-            $key = $coords->galaxy . ':' . $system . ':' . $position;
+            $key = $referenceCoords->galaxy . ':' . $system . ':' . $position;
             if (!in_array($key, $occupiedPositions, true)) {
                 return [
-                    'galaxy'   => $coords->galaxy,
+                    'galaxy'   => $referenceCoords->galaxy,
                     'system'   => $system,
                     'position' => $position,
                 ];
@@ -141,5 +146,25 @@ class AiPlayerTargetService
         }
 
         return null;
+    }
+
+    /**
+     * Get the homeworld coordinates by finding the planet with the lowest ID.
+     *
+     * Returns null when the player has no planets.
+     *
+     * @param PlayerService $player
+     * @return \OGame\Models\Planet\Coordinate|null
+     */
+    private function getHomeworldCoordinates(PlayerService $player): ?\OGame\Models\Planet\Coordinate
+    {
+        $homeworld = null;
+        foreach ($player->planets->allPlanets() as $planet) {
+            if ($homeworld === null || $planet->getPlanetId() < $homeworld->getPlanetId()) {
+                $homeworld = $planet;
+            }
+        }
+
+        return $homeworld?->getPlanetCoordinates();
     }
 }
