@@ -10,8 +10,10 @@ use OGame\GameObjects\Models\Units\UnitCollection;
 use OGame\Models\AiPlayer;
 use OGame\Models\AiPlayerLog;
 use OGame\Models\Enums\PlanetType;
+use OGame\Models\Planet;
 use OGame\Models\Planet\Coordinate;
 use OGame\Models\Resources;
+use OGame\Models\User;
 use OGame\Services\AiPlayer\Strategies\AiPlayerStrategyInterface;
 use OGame\Services\BuildingQueueService;
 use OGame\Services\FleetMissionService;
@@ -266,6 +268,16 @@ class AiPlayerActionService
             return 0;
         }
 
+        // Do not attack or spy on players who are in the same alliance as the AI.
+        if ($this->isAllyTarget($aiPlayer, $action['target'])) {
+            $this->logAction($aiPlayer, 'fleet_action', [
+                'planet_id'    => $planet->getPlanetId(),
+                'mission_type' => $action['mission_type'],
+                'target'       => $action['target'],
+            ], 'skipped', 'Target belongs to alliance member');
+            return 0;
+        }
+
         try {
             $units = $this->buildUnitCollection($action['ships'], $planet);
             if ($units === null) {
@@ -402,6 +414,45 @@ class AiPlayerActionService
             ], 'failed', $e->getMessage());
             return 0;
         }
+    }
+
+    /**
+     * Check whether the target coordinate belongs to a player who is in the same
+     * alliance as the AI player. Returns true when both the AI and the target
+     * player are members of the same alliance (i.e. the target must not be attacked).
+     *
+     * @param AiPlayer $aiPlayer
+     * @param array{galaxy: int, system: int, position: int} $target
+     */
+    private function isAllyTarget(AiPlayer $aiPlayer, array $target): bool
+    {
+        // Determine the AI player's alliance. Use the already-loaded relationship
+        // to avoid an extra query when the user is already eager-loaded.
+        $aiUser = $aiPlayer->user;
+        if ($aiUser === null || empty($aiUser->alliance_id)) {
+            return false;
+        }
+
+        $aiAllianceId = (int) $aiUser->alliance_id;
+
+        // Look up the planet at the target coordinates.
+        $planet = Planet::where('galaxy', $target['galaxy'])
+            ->where('system', $target['system'])
+            ->where('planet', $target['position'])
+            ->where('planet_type', PlanetType::Planet->value)
+            ->first();
+
+        if ($planet === null) {
+            return false;
+        }
+
+        // Retrieve the owner of the target planet.
+        $targetUser = User::find($planet->user_id);
+        if ($targetUser === null || empty($targetUser->alliance_id)) {
+            return false;
+        }
+
+        return (int) $targetUser->alliance_id === $aiAllianceId;
     }
 
     /**
