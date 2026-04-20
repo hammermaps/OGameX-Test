@@ -282,4 +282,25 @@ abstract class AbstractStrategy implements AiPlayerStrategyInterface
         }
         return $ships;
     }
+
+    /**
+     * Generate a random nearby target coordinate for espionage or attack missions.
+     *
+     * @param PlanetService $planet The planet to use as a reference for the target.
+     * @param int $systemRange Maximum system offset from the reference planet.
+     * @return array{galaxy: int, system: int, position: int}
+     */
+    protected function getRandomNearbyTarget(PlanetService $planet, int $systemRange = 5): array
+    {
+        $galaxy = $planet->getPlanetCoordinates()->galaxy;
+        $system = $planet->getPlanetCoordinates()->system;
+        $position = rand(1, 15);
+        $systemOffset = rand(-$systemRange, $systemRange);
+
+        return [
+            'galaxy' => $galaxy,
+            'system' => max(1, $system + $systemOffset),
+            'position' => $position,
+        ];
+    }
 }

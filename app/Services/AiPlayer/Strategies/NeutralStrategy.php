@@ -77,12 +77,16 @@ class NeutralStrategy extends AbstractStrategy
 
     /**
      * Neutral players occasionally send espionage probes or expeditions.
+     *
+     * Randomly alternates between espionage scouting and expedition missions.
+     * Expeditions are preferred when a small cargo is available; espionage is
+     * used as a fallback or as the primary action one-third of the time.
      */
     public function decideFleetAction(PlayerService $player, PlanetService $planet): ?array
     {
         $ships = $this->getAvailableShips($planet);
 
-        // Occasionally send expeditions
+        // Occasionally send expeditions (1-in-3 chance when a cargo ship is available).
         if (isset($ships['small_cargo']) && $ships['small_cargo'] >= 1 && rand(1, 3) === 1) {
             $smallCargo = ObjectService::getShipObjectByMachineName('small_cargo');
             return [
@@ -93,6 +97,16 @@ class NeutralStrategy extends AbstractStrategy
                     'position' => 16,
                 ],
                 'ships' => [$smallCargo->id => 1],
+            ];
+        }
+
+        // Otherwise spy on nearby systems.
+        if (isset($ships['espionage_probe']) && $ships['espionage_probe'] >= 2) {
+            $espionageProbe = ObjectService::getShipObjectByMachineName('espionage_probe');
+            return [
+                'mission_type' => 6, // Espionage
+                'target' => $this->getRandomNearbyTarget($planet, 8),
+                'ships' => [$espionageProbe->id => 2],
             ];
         }
 

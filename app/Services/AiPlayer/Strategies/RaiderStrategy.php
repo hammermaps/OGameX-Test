@@ -72,18 +72,42 @@ class RaiderStrategy extends AbstractStrategy
     }
 
     /**
-     * Raiders frequently spy on neighbors.
+     * Raiders attack with light fighters when a strike force is ready, and fall
+     * back to frequent espionage scouting otherwise.
+     *
+     * A raid requires at least 5 light fighters to form a meaningful strike force.
+     * Small cargo ships are included to carry plundered resources back.
      */
     public function decideFleetAction(PlayerService $player, PlanetService $planet): ?array
     {
         $ships = $this->getAvailableShips($planet);
 
-        // Send espionage probes frequently
+        // Launch a raid when a strike force of light fighters is available.
+        if (
+            isset($ships['light_fighter'])
+            && $ships['light_fighter'] >= 5
+            && isset($ships['small_cargo'])
+            && $ships['small_cargo'] >= 2
+        ) {
+            $lightFighter = ObjectService::getShipObjectByMachineName('light_fighter');
+            $smallCargo   = ObjectService::getShipObjectByMachineName('small_cargo');
+
+            return [
+                'mission_type' => 1, // Attack
+                'target' => $this->getRandomNearbyTarget($planet, 10),
+                'ships' => [
+                    $lightFighter->id => min($ships['light_fighter'], 8),
+                    $smallCargo->id   => min($ships['small_cargo'], 3),
+                ],
+            ];
+        }
+
+        // Fall back to espionage scouting.
         if (isset($ships['espionage_probe']) && $ships['espionage_probe'] >= 3) {
             $espionageProbe = ObjectService::getShipObjectByMachineName('espionage_probe');
             return [
                 'mission_type' => 6, // Espionage
-                'target' => $this->getRandomNearbyTarget($planet),
+                'target' => $this->getRandomNearbyTarget($planet, 10),
                 'ships' => [$espionageProbe->id => 3],
             ];
         }
@@ -94,24 +118,5 @@ class RaiderStrategy extends AbstractStrategy
     public function shouldExpand(PlayerService $player): bool
     {
         return $player->planets->planetCount() < 6;
-    }
-
-    /**
-     * Generate a random nearby target for espionage.
-     *
-     * @return array{galaxy: int, system: int, position: int}
-     */
-    private function getRandomNearbyTarget(PlanetService $planet): array
-    {
-        $galaxy = $planet->getPlanetCoordinates()->galaxy;
-        $system = $planet->getPlanetCoordinates()->system;
-        $position = rand(1, 15);
-        $systemOffset = rand(-10, 10);
-
-        return [
-            'galaxy' => $galaxy,
-            'system' => max(1, $system + $systemOffset),
-            'position' => $position,
-        ];
     }
 }
