@@ -19,9 +19,13 @@ interface AiPlayerStrategyInterface
      *
      * @param PlanetService $planet
      * @param PlayerService $player
+     * @param list<string> $alreadyQueued Machine names of buildings already scheduled in the queue
+     *                                    (either from previous turns or added earlier this turn).
+     *                                    Buildings in this list are skipped so the AI diversifies
+     *                                    its build queue instead of always picking the same building.
      * @return int|null The building object ID, or null if nothing should be built.
      */
-    public function decideBuildingPriority(PlanetService $planet, PlayerService $player): ?int;
+    public function decideBuildingPriority(PlanetService $planet, PlayerService $player, array $alreadyQueued = []): ?int;
 
     /**
      * Decide which research to start next.

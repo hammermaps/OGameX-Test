@@ -113,7 +113,12 @@ class AiPlayerActionService
     }
 
     /**
-     * Attempt to add a building to the queue.
+     * Attempt to add buildings to the queue for the planet.
+     *
+     * Loops until the queue is full or no more buildable buildings remain,
+     * filling the queue with diverse buildings from the strategy's priority list.
+     * Each iteration skips buildings already scheduled so the AI considers all
+     * buildings rather than always queuing the same one.
      */
     private function tryBuildBuilding(
         AiPlayer $aiPlayer,
@@ -126,25 +131,49 @@ class AiPlayerActionService
             return 0;
         }
 
-        $buildingId = $strategy->decideBuildingPriority($planet, $playerService);
-        if ($buildingId === null) {
-            return 0;
+        // Collect machine names already present in the building queue so that
+        // decideBuildingPriority can skip them and pick the next priority building.
+        $queueItems = $this->buildingQueueService->retrieveQueueItems($planet);
+        $alreadyQueued = [];
+        foreach ($queueItems as $item) {
+            try {
+                $object = ObjectService::getObjectById($item->object_id);
+                $alreadyQueued[] = $object->machine_name;
+            } catch (\Throwable) {
+                // Ignore unknown objects.
+            }
         }
 
-        try {
-            $this->buildingQueueService->add($planet, $buildingId);
-            $this->logAction($aiPlayer, 'build', [
-                'planet_id' => $planet->getPlanetId(),
-                'object_id' => $buildingId,
-            ], 'success');
-            return 1;
-        } catch (Exception $e) {
-            $this->logAction($aiPlayer, 'build', [
-                'planet_id' => $planet->getPlanetId(),
-                'object_id' => $buildingId,
-            ], 'failed', $e->getMessage());
-            return 0;
+        $actionsExecuted = 0;
+
+        // Try to fill the building queue (max 5 slots) with diverse buildings.
+        $maxSlots = 5;
+        for ($i = 0; $i < $maxSlots; $i++) {
+            $buildingId = $strategy->decideBuildingPriority($planet, $playerService, $alreadyQueued);
+            if ($buildingId === null) {
+                break;
+            }
+
+            try {
+                $this->buildingQueueService->add($planet, $buildingId);
+                $object = ObjectService::getObjectById($buildingId);
+                $alreadyQueued[] = $object->machine_name;
+                $this->logAction($aiPlayer, 'build', [
+                    'planet_id' => $planet->getPlanetId(),
+                    'object_id' => $buildingId,
+                ], 'success');
+                $actionsExecuted++;
+            } catch (Exception $e) {
+                $this->logAction($aiPlayer, 'build', [
+                    'planet_id' => $planet->getPlanetId(),
+                    'object_id' => $buildingId,
+                ], 'failed', $e->getMessage());
+                // Stop filling the queue on any error (e.g. queue full, requirements not met).
+                break;
+            }
         }
+
+        return $actionsExecuted;
     }
 
     /**
