@@ -177,12 +177,10 @@ class AiPlayerActionService
                 $object = ObjectService::getObjectById($buildingId);
                 $alreadyQueued[] = $object->machine_name;
                 $addedObjectIds[] = $buildingId;
-            } catch (QueueFullException $e) {
+            } catch (QueueFullException) {
                 // Queue is already full – no point trying further buildings this turn.
-                $this->logAction($aiPlayer, 'build', [
-                    'planet_id' => $planet->getPlanetId(),
-                    'object_id' => $buildingId,
-                ], 'failed', $e->getMessage());
+                // No failure log here; the slot count check above should prevent this
+                // in normal operation, but race conditions can still cause it.
                 break;
             } catch (Exception $e) {
                 $this->logAction($aiPlayer, 'build', [
