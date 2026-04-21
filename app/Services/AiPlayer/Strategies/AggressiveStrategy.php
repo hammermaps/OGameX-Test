@@ -99,11 +99,10 @@ class AggressiveStrategy extends AbstractStrategy
                 ? [ObjectService::getShipObjectByMachineName('light_fighter')->id => min($ships['light_fighter'], 5)]
                 : [];
 
-            $attackShips = array_merge(
-                [$cruiser->id => min($ships['cruiser'], 5)],
-                $lightFighterEntry,
-                [$smallCargo->id => min($ships['small_cargo'], 3)],
-            );
+            $attackShips =
+                [$cruiser->id => min($ships['cruiser'], 5)]
+                + $lightFighterEntry
+                + [$smallCargo->id => min($ships['small_cargo'], 3)];
 
             return [
                 'mission_type' => 1, // Attack
