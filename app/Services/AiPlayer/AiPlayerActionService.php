@@ -151,10 +151,16 @@ class AiPlayerActionService
             }
         }
 
+        // Only try to add as many buildings as there are free slots in the queue.
+        $remainingSlots = self::MAX_BUILDING_QUEUE_SLOTS - $queueItems->count();
+        if ($remainingSlots <= 0) {
+            return 0;
+        }
+
         $actionsExecuted = 0;
 
-        // Try to fill the building queue with diverse buildings from the priority list.
-        for ($i = 0; $i < self::MAX_BUILDING_QUEUE_SLOTS; $i++) {
+        // Try to fill the available queue slots with diverse buildings from the priority list.
+        for ($i = 0; $i < $remainingSlots; $i++) {
             $buildingId = $strategy->decideBuildingPriority($planet, $playerService, $alreadyQueued);
             if ($buildingId === null) {
                 break;
@@ -175,13 +181,9 @@ class AiPlayerActionService
                     'object_id' => $buildingId,
                 ], 'failed', $e->getMessage());
 
-                if (str_contains($e->getMessage(), 'Maximum number of items already in queue')) {
-                    // Queue is full – no point trying further buildings this turn.
-                    break;
-                }
-
-                // For any other error (requirements not met, wrong planet type, etc.)
-                // skip this building and continue attempting the remaining priorities.
+                // Skip this building and try the next one in the priority list.
+                // The add() call may fail for reasons like unmet requirements or
+                // an invalid planet type; skipping lets the AI queue other buildings.
                 try {
                     $object = ObjectService::getObjectById($buildingId);
                     $alreadyQueued[] = $object->machine_name;
