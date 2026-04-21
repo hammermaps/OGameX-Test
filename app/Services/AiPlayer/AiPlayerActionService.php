@@ -179,8 +179,8 @@ class AiPlayerActionService
                 $addedObjectIds[] = $buildingId;
             } catch (QueueFullException) {
                 // Queue is already full – no point trying further buildings this turn.
-                // No failure log here; the slot count check above should prevent this
-                // in normal operation, but race conditions can still cause it.
+                // In normal operation the slot-count check above prevents this, but
+                // BuildingQueueService enforces its own guard as a safety net.
                 break;
             } catch (Exception $e) {
                 $this->logAction($aiPlayer, 'build', [

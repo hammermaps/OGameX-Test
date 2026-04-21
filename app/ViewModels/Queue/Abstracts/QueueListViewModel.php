@@ -12,7 +12,7 @@ class QueueListViewModel
      * Reference this constant from any other class that needs to know the limit
      * instead of hard-coding the value.
      *
-     * TODO: refactor into a global/constant setting configurable by admin.
+     * TODO: refactor into a global constant setting configurable by admin.
      */
     public const BUILDING_QUEUE_SLOT_LIMIT = 5;
 
