@@ -56,10 +56,11 @@ class AggressiveStrategy extends AbstractStrategy
         $units = [];
         $shipPriorities = [
             'cruiser' => 5,
-            'battleship' => 3,
+            'battle_ship' => 3,
             'bomber' => 2,
             'light_fighter' => 10,
             'heavy_fighter' => 5,
+            'small_cargo' => 3,
             'espionage_probe' => 5,
         ];
 
@@ -74,18 +75,48 @@ class AggressiveStrategy extends AbstractStrategy
     }
 
     /**
-     * Aggressive players actively seek espionage and attack targets.
+     * Aggressive players actively attack and run espionage missions.
+     *
+     * When a strong combat fleet (≥ 3 cruisers) and at least one cargo ship are
+     * available, a raid attack is dispatched. Otherwise falls back to espionage
+     * probes to scout nearby targets.
      */
     public function decideFleetAction(PlayerService $player, PlanetService $planet): ?array
     {
         $ships = $this->getAvailableShips($planet);
 
-        // Send espionage probes if available
+        // Launch a raid when a meaningful combat fleet is available.
+        if (
+            isset($ships['cruiser']) && $ships['cruiser'] >= 3
+            && isset($ships['small_cargo']) && $ships['small_cargo'] >= 1
+        ) {
+            $cruiser    = ObjectService::getShipObjectByMachineName('cruiser');
+            $smallCargo = ObjectService::getShipObjectByMachineName('small_cargo');
+
+            // Build the attack fleet: cruisers as the core, optional light fighter escort,
+            // and cargo ships to haul back plundered resources.
+            $lightFighterEntry = (isset($ships['light_fighter']) && $ships['light_fighter'] >= 3)
+                ? [ObjectService::getShipObjectByMachineName('light_fighter')->id => min($ships['light_fighter'], 5)]
+                : [];
+
+            $attackShips =
+                [$cruiser->id => min($ships['cruiser'], 5)]
+                + $lightFighterEntry
+                + [$smallCargo->id => min($ships['small_cargo'], 3)];
+
+            return [
+                'mission_type' => 1, // Attack
+                'target' => $this->getRandomNearbyTarget($planet, 5),
+                'ships' => $attackShips,
+            ];
+        }
+
+        // Fall back to espionage scouting.
         if (isset($ships['espionage_probe']) && $ships['espionage_probe'] >= 2) {
             $espionageProbe = ObjectService::getShipObjectByMachineName('espionage_probe');
             return [
                 'mission_type' => 6, // Espionage
-                'target' => $this->getRandomNearbyTarget($planet),
+                'target' => $this->getRandomNearbyTarget($planet, 5),
                 'ships' => [$espionageProbe->id => 2],
             ];
         }
@@ -96,24 +127,5 @@ class AggressiveStrategy extends AbstractStrategy
     public function shouldExpand(PlayerService $player): bool
     {
         return $player->planets->planetCount() < 7;
-    }
-
-    /**
-     * Generate a random nearby target coordinate for espionage/attacks.
-     *
-     * @return array{galaxy: int, system: int, position: int}
-     */
-    private function getRandomNearbyTarget(PlanetService $planet): array
-    {
-        $galaxy = $planet->getPlanetCoordinates()->galaxy;
-        $system = $planet->getPlanetCoordinates()->system;
-        $position = rand(1, 15);
-        $systemOffset = rand(-5, 5);
-
-        return [
-            'galaxy' => $galaxy,
-            'system' => max(1, $system + $systemOffset),
-            'position' => $position,
-        ];
     }
 }
