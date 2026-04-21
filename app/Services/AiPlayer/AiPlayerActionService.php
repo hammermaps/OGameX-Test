@@ -31,6 +31,13 @@ use OGame\Services\UnitQueueService;
  */
 class AiPlayerActionService
 {
+    /**
+     * Maximum number of items allowed in the building queue.
+     *
+     * Must match the value in QueueListViewModel::isQueueFull().
+     */
+    private const MAX_BUILDING_QUEUE_SLOTS = 5;
+
     public function __construct(
         private PlayerServiceFactory $playerServiceFactory,
         private BuildingQueueService $buildingQueueService,
@@ -146,9 +153,8 @@ class AiPlayerActionService
 
         $actionsExecuted = 0;
 
-        // Try to fill the building queue (max 5 slots) with diverse buildings.
-        $maxSlots = 5;
-        for ($i = 0; $i < $maxSlots; $i++) {
+        // Try to fill the building queue with diverse buildings from the priority list.
+        for ($i = 0; $i < self::MAX_BUILDING_QUEUE_SLOTS; $i++) {
             $buildingId = $strategy->decideBuildingPriority($planet, $playerService, $alreadyQueued);
             if ($buildingId === null) {
                 break;
@@ -168,8 +174,21 @@ class AiPlayerActionService
                     'planet_id' => $planet->getPlanetId(),
                     'object_id' => $buildingId,
                 ], 'failed', $e->getMessage());
-                // Stop filling the queue on any error (e.g. queue full, requirements not met).
-                break;
+
+                if (str_contains($e->getMessage(), 'Maximum number of items already in queue')) {
+                    // Queue is full – no point trying further buildings this turn.
+                    break;
+                }
+
+                // For any other error (requirements not met, wrong planet type, etc.)
+                // skip this building and continue attempting the remaining priorities.
+                try {
+                    $object = ObjectService::getObjectById($buildingId);
+                    $alreadyQueued[] = $object->machine_name;
+                } catch (\Throwable) {
+                    // Cannot resolve object – stop to avoid an infinite loop.
+                    break;
+                }
             }
         }
 
