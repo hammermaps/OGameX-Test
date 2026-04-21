@@ -47,15 +47,23 @@ abstract class AbstractStrategy implements AiPlayerStrategyInterface
      * On small resource-colony planets the method delegates to the
      * resource-colony priority list instead of the regular one.
      *
+     * Buildings listed in $alreadyQueued (machine names) are skipped so that
+     * consecutive calls within the same turn produce diverse queue entries instead
+     * of repeatedly queuing the same building.
+     *
      * @param PlanetService $planet
      * @param PlayerService $player
+     * @param list<string> $alreadyQueued Machine names of buildings already scheduled in the queue.
      * @return int|null
      */
-    public function decideBuildingPriority(PlanetService $planet, PlayerService $player): ?int
+    public function decideBuildingPriority(PlanetService $planet, PlayerService $player, array $alreadyQueued = []): ?int
     {
         // If energy is negative, try to build an energy producer first.
         if ($planet->energy()->get() < 0) {
             foreach (self::ENERGY_PRODUCERS as $machineName) {
+                if (in_array($machineName, $alreadyQueued, true)) {
+                    continue;
+                }
                 if ($this->canBuildObject($machineName, $planet)) {
                     $object = ObjectService::getObjectByMachineName($machineName);
                     Log::channel('ai')->info('Energy deficit detected – prioritizing energy producer', [
@@ -74,6 +82,12 @@ abstract class AbstractStrategy implements AiPlayerStrategyInterface
             : $this->getBuildingPriorityList();
 
         foreach ($priorityList as $machineName) {
+            // Skip buildings that are already scheduled in the queue so the AI
+            // diversifies its build queue rather than always queuing the same building.
+            if (in_array($machineName, $alreadyQueued, true)) {
+                continue;
+            }
+
             if (!$this->canBuildObject($machineName, $planet)) {
                 continue;
             }
@@ -85,12 +99,18 @@ abstract class AbstractStrategy implements AiPlayerStrategyInterface
                 $cost = ObjectService::getObjectPrice($machineName, $planet);
                 $storageUpgradeId = $this->getStorageBottleneck($cost, $planet);
                 if ($storageUpgradeId !== null) {
-                    Log::channel('ai')->info('Storage bottleneck detected – upgrading storage before building', [
-                        'planet_id'       => $planet->getPlanetId(),
-                        'target_building' => $machineName,
-                        'storage_upgrade' => $storageUpgradeId,
-                    ]);
-                    return $storageUpgradeId;
+                    // Only suggest the storage upgrade if it is not already queued.
+                    $storageMachineName = ObjectService::getObjectById($storageUpgradeId)->machine_name;
+                    if (!in_array($storageMachineName, $alreadyQueued, true)) {
+                        Log::channel('ai')->info('Storage bottleneck detected – upgrading storage before building', [
+                            'planet_id'       => $planet->getPlanetId(),
+                            'target_building' => $machineName,
+                            'storage_upgrade' => $storageUpgradeId,
+                        ]);
+                        return $storageUpgradeId;
+                    }
+                    // Storage upgrade already queued; skip this building for now.
+                    continue;
                 }
             } catch (\Throwable $e) {
                 Log::channel('ai')->warning('Failed to check storage bottleneck for building', [

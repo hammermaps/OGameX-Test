@@ -5,6 +5,7 @@ namespace OGame\Services;
 use Exception;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Date;
+use OGame\Exceptions\QueueFullException;
 use OGame\GameObjects\Models\Enums\GameObjectType;
 use OGame\Models\BuildingQueue;
 use OGame\Models\Resources;
@@ -74,7 +75,7 @@ class BuildingQueueService
         // TODO: refactor throw exception into a more user-friendly message.
         if ($build_queue->isQueueFull()) {
             // Max amount of build queue items already exist, throw exception.
-            throw new Exception('Maximum number of items already in queue.');
+            throw new QueueFullException('Maximum number of items already in queue.');
         }
 
         // Check if user satisfies requirements to build this object.
@@ -159,7 +160,7 @@ class BuildingQueueService
 
         // Max amount of buildings that can be in the queue in a given time.
         if ($build_queue->isQueueFull()) {
-            throw new Exception('Maximum number of items already in queue.');
+            throw new QueueFullException('Maximum number of items already in queue.');
         }
 
         // Get the building object
