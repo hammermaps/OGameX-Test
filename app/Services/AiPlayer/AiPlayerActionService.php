@@ -14,6 +14,7 @@ use OGame\Models\Planet;
 use OGame\Models\Planet\Coordinate;
 use OGame\Models\Resources;
 use OGame\Models\User;
+use OGame\Exceptions\QueueFullException;
 use OGame\Services\AiPlayer\Strategies\AiPlayerStrategyInterface;
 use OGame\Services\BuildingQueueService;
 use OGame\Services\FleetMissionService;
@@ -22,6 +23,7 @@ use OGame\Services\PlanetService;
 use OGame\Services\PlayerService;
 use OGame\Services\ResearchQueueService;
 use OGame\Services\UnitQueueService;
+use OGame\ViewModels\Queue\Abstracts\QueueListViewModel;
 
 /**
  * Core decision engine for AI players.
@@ -34,9 +36,10 @@ class AiPlayerActionService
     /**
      * Maximum number of items allowed in the building queue.
      *
-     * Must match the value in QueueListViewModel::isQueueFull().
+     * Delegates to the single source of truth in QueueListViewModel so that
+     * changing the queue limit in one place is reflected everywhere.
      */
-    private const MAX_BUILDING_QUEUE_SLOTS = 5;
+    private const MAX_BUILDING_QUEUE_SLOTS = QueueListViewModel::BUILDING_QUEUE_SLOT_LIMIT;
 
     public function __construct(
         private PlayerServiceFactory $playerServiceFactory,
@@ -126,6 +129,9 @@ class AiPlayerActionService
      * filling the queue with diverse buildings from the strategy's priority list.
      * Each iteration skips buildings already scheduled so the AI considers all
      * buildings rather than always queuing the same one.
+     *
+     * Success events are aggregated into a single log entry per planet/turn to
+     * avoid unbounded DB write growth when the queue fills up in one shot.
      */
     private function tryBuildBuilding(
         AiPlayer $aiPlayer,
@@ -157,7 +163,7 @@ class AiPlayerActionService
             return 0;
         }
 
-        $actionsExecuted = 0;
+        $addedObjectIds = [];
 
         // Try to fill the available queue slots with diverse buildings from the priority list.
         for ($i = 0; $i < $remainingSlots; $i++) {
@@ -170,20 +176,22 @@ class AiPlayerActionService
                 $this->buildingQueueService->add($planet, $buildingId);
                 $object = ObjectService::getObjectById($buildingId);
                 $alreadyQueued[] = $object->machine_name;
+                $addedObjectIds[] = $buildingId;
+            } catch (QueueFullException $e) {
+                // Queue is already full – no point trying further buildings this turn.
                 $this->logAction($aiPlayer, 'build', [
                     'planet_id' => $planet->getPlanetId(),
                     'object_id' => $buildingId,
-                ], 'success');
-                $actionsExecuted++;
+                ], 'failed', $e->getMessage());
+                break;
             } catch (Exception $e) {
                 $this->logAction($aiPlayer, 'build', [
                     'planet_id' => $planet->getPlanetId(),
                     'object_id' => $buildingId,
                 ], 'failed', $e->getMessage());
 
-                // Skip this building and try the next one in the priority list.
-                // The add() call may fail for reasons like unmet requirements or
-                // an invalid planet type; skipping lets the AI queue other buildings.
+                // For other errors (unmet requirements, invalid planet type, …) skip this
+                // building and continue attempting the remaining priorities.
                 try {
                     $object = ObjectService::getObjectById($buildingId);
                     $alreadyQueued[] = $object->machine_name;
@@ -194,7 +202,17 @@ class AiPlayerActionService
             }
         }
 
-        return $actionsExecuted;
+        // Emit a single aggregated success log entry for this planet/turn instead
+        // of one entry per building to keep DB write load proportional.
+        if (!empty($addedObjectIds)) {
+            $this->logAction($aiPlayer, 'build', [
+                'planet_id'  => $planet->getPlanetId(),
+                'object_ids' => $addedObjectIds,
+                'count'      => count($addedObjectIds),
+            ], 'success');
+        }
+
+        return count($addedObjectIds);
     }
 
     /**

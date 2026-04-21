@@ -5,6 +5,18 @@ namespace OGame\ViewModels\Queue\Abstracts;
 class QueueListViewModel
 {
     /**
+     * Maximum number of items allowed in the building queue
+     * (1 currently building + 4 waiting = 5 total).
+     *
+     * This is the single source of truth for the queue size limit.
+     * Reference this constant from any other class that needs to know the limit
+     * instead of hard-coding the value.
+     *
+     * TODO: refactor into a global/constant setting configurable by admin.
+     */
+    public const BUILDING_QUEUE_SLOT_LIMIT = 5;
+
+    /**
      * Constructor.
      *
      * @param array<QueueViewModel> $queue
@@ -34,9 +46,6 @@ class QueueListViewModel
      */
     public function isQueueFull(): bool
     {
-        // Max items is 1 currently building + 4 in queue = 5.
-        // TODO: refactor into global/constant setting configurable by admin.
-        $maxItemsInQueue = 5;
-        return count($this->queue) >= $maxItemsInQueue;
+        return count($this->queue) >= self::BUILDING_QUEUE_SLOT_LIMIT;
     }
 }
