@@ -215,7 +215,7 @@
             // Fallback to current time when there is no rendered row timestamp.
             if (tbody && tbody.firstElementChild) {
                 var newestTimestamp = tbody.firstElementChild.getAttribute('data-created-at');
-                lastSeen = newestTimestamp ? newestTimestamp : new Date().toISOString();
+                lastSeen = newestTimestamp || new Date().toISOString();
             } else {
                 lastSeen = new Date().toISOString();
             }
