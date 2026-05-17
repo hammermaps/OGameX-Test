@@ -1195,3 +1195,110 @@ ul.chat_bar_list .newMsgMarker {
     margin-top:-64px;
     background:url(/img/galaxy/ajax_indicator.gif);
 }
+
+/* ==========================================================================
+   RESPONSIVE LAYOUT
+   Makes the game fill the full available browser width.
+   ========================================================================== */
+
+/* 1. Let the page content stretch to the full viewport width */
+#pageContent {
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    box-sizing: border-box;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+/* 2. Top bar spans the full width */
+#top {
+    width: 100%;
+    flex: 0 0 100%;
+    box-sizing: border-box;
+}
+
+/* 3. Three-column layout: fixed sidebar widths, fluid middle */
+#left {
+    flex: 0 0 160px;
+    float: none;
+}
+
+#middle {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    float: none;
+}
+
+#right {
+    flex: 0 0 150px;
+    float: none;
+}
+
+/* 4. Main content containers inside #middle fill available width */
+.maincontent {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#buttonz {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#buttonz .footer {
+    width: 100%;
+}
+
+#buttonz .content {
+    box-sizing: border-box;
+}
+
+/* 5. Common content wrappers that previously used the fixed 670 px middle width */
+#mainContent,
+#content,
+.content-box,
+.content-box-s,
+#fleet,
+#sendfleet,
+#fleetdispatchcomponent,
+#chat,
+#galaxyContent,
+#highscoreContent,
+#messages,
+#alliance,
+#eventbox,
+#overview,
+#buddiescomponent {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* 6. Resource bar and header bar – stretch across the top bar */
+#resources,
+#bar ul {
+    box-sizing: border-box;
+}
+
+/* 7. Responsive breakpoint: stack columns vertically on narrow screens */
+@media (max-width: 600px) {
+    #pageContent {
+        display: block;
+    }
+
+    #left,
+    #middle,
+    #right {
+        width: 100%;
+        float: none;
+        flex: none;
+    }
+
+    #left {
+        position: static;
+        top: auto;
+    }
+}
