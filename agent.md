@@ -51,13 +51,13 @@ OGameX/
 │   ├── Models/             # Eloquent models (36 models)
 │   ├── Observers/          # Model lifecycle observers (User, UserTech)
 │   ├── Providers/          # Service providers (App, Fortify)
-│   ├── Services/           # Business logic services (36 services)
+│   ├── Services/           # Business logic services (37+ services)
 │   └── ViewModels/         # View model DTOs for Blade templates
 ├── bootstrap/              # Laravel bootstrap files
 ├── config/                 # Configuration files (15 configs)
 ├── database/
 │   ├── factories/          # Model factories for testing
-│   ├── migrations/         # Database migrations (48 migration files)
+│   ├── migrations/         # Database migrations (97 migration files)
 │   └── seeds/              # Database seeders
 ├── docker/                 # Docker support files (entrypoint.sh, phpmyadmin config)
 ├── docs/                   # Developer documentation
@@ -115,7 +115,7 @@ The application follows a domain-driven approach with dedicated directories for 
 
 ### Service Layer
 
-All business logic is encapsulated in `app/Services/` (36 services). Key services:
+All business logic is encapsulated in `app/Services/` (37+ services). Key services:
 
 | Service | Responsibility |
 |---------|---------------|
@@ -128,6 +128,9 @@ All business logic is encapsulated in `app/Services/` (36 services). Key service
 | `HighscoreService` | Player/alliance ranking calculations |
 | `AllianceService` | Alliance CRUD, membership, permissions |
 | `SettingsService` | Server-wide game configuration |
+| `AiPlayerService` | AI player creation, lifecycle, and management |
+| `AiPlayerActionService` | Core AI decision engine: buildings, research, units, fleets per turn |
+| `AiPlayerTargetService` | Strategy resolution and target planet selection for AI |
 
 ### Battle Engine (Dual Implementation)
 
@@ -140,7 +143,7 @@ Both extend `BattleEngine.php` (abstract base) and produce identical results.
 
 ### HTTP Layer
 
-- **41+ Controllers** in `app/Http/Controllers/` handle all game pages and AJAX endpoints.
+- **41+ Controllers** in `app/Http/Controllers/` handle all game pages and AJAX endpoints (including `AiPlayerAdminController`).
 - **7 Middleware** enforce authentication, ban checks, locale, admin access, server timing, and onboarding.
 - **View Composers** inject shared data (player info, planet list, fleet events) into Blade templates.
 
@@ -154,10 +157,15 @@ Both extend `BattleEngine.php` (abstract base) and produce identical results.
 ## Key Models (Eloquent ORM)
 
 ### Core
-- `User` – Player account (auth, dark matter, vacation mode, character class)
+- `User` – Player account (auth, dark matter, vacation mode, character class, `is_ai_player` flag)
 - `Planet` – Planet entity (coordinates, resources, buildings, fields)
 - `UserTech` – Research levels per player
 - `Resources` – Resource pool (metal, crystal, deuterium) per planet
+
+### AI Players
+- `AiPlayer` – AI player configuration (profile, difficulty, priorities, sleep schedule, active flag)
+- `AiPlayerLog` – Per-turn action log with `action_type`, `action_data`, `status`, and `error_message`
+- `AiDaemonStatus` – Daemon heartbeat and cycle tracking
 
 ### Fleet & Combat
 - `FleetMission` – Active fleet operation (status, resources, timing, units)
@@ -173,7 +181,8 @@ Both extend `BattleEngine.php` (abstract base) and produce identical results.
 
 ### Social
 - `Alliance`, `AllianceMember`, `AllianceRank`, `AllianceApplication`
-- `Message`, `ChatMessage`, `BuddyRequest`, `Note`
+- `Message`, `ChatMessage`, `BuddyRequest`, `Note`, `IgnoredPlayer`
+- `Ban` – Player ban records with reason and audit trail
 
 ---
 
@@ -300,6 +309,7 @@ docker compose -f docker-compose.prod.yml up -d --build --force-recreate
 | `ogamex-queue-worker` | Queue job processor |
 | `ogamex-webserver` | Nginx reverse proxy |
 | `ogamex-reverb` | WebSocket server (Laravel Reverb) |
+| `ogamex-ai-daemon` | AI player daemon (`ogamex:ai:daemon`) |
 | `ogamex-phpmyadmin` | Database admin UI |
 
 > **Note:** First startup can take up to 10 minutes due to Composer initialization and Rust compilation.
@@ -308,7 +318,7 @@ docker compose -f docker-compose.prod.yml up -d --build --force-recreate
 
 ## Database
 
-- **48 migration files** covering the full schema evolution (2017–2025).
+- **97 migration files** covering the full schema evolution (2017–2026).
 - Key tables: `users`, `planets`, `resources`, `user_tech`, `fleet_missions`, `building_queue`, `research_queue`, `unit_queue`, `alliances`, `messages`, `battle_reports`, `highscores`.
 - Resources are stored as `float` for precision.
 - Queue-based architecture for buildings, research, and unit construction.
@@ -321,6 +331,7 @@ Supported languages in `resources/lang/`:
 - **English** (en) – primary
 - **Italian** (it)
 - **Dutch** (nl)
+- **German** (de)
 
 ---
 
@@ -350,3 +361,61 @@ php artisan ogamex:admin:remove-role {username}
 ```
 
 The first registered user is automatically assigned the admin role.
+
+---
+
+## AI Player System
+
+The AI Player system (`app/Services/AiPlayer/`, `app/Models/AiPlayer*`) enables automated bot players that participate in the game alongside human players.
+
+### Strategy Profiles
+
+| Profile | Description | Character Class |
+|---------|-------------|----------------|
+| `aggressive` | Weapons research, combat ships, active attacks | General |
+| `neutral` | Balanced economy and military | Discoverer |
+| `defensive` | Defense installations, shields, armor | General |
+| `miner` | Maximizes resource production, minimal military | Collector |
+| `raider` | Fast fleet, frequent espionage, attacks weak targets | General |
+| `turtle` | Maximum defense, resource security, minimal fleet | Collector |
+
+### Architecture
+
+- **`AiPlayerStrategyInterface`** – Contract for all strategy implementations.
+- **`AbstractStrategy`** – Base class with shared helpers: energy-deficit detection, storage-bottleneck checks, resource-colony detection.
+- **`AiPlayerActionService`** – Core turn-processor: colonize, build, research, build units, dispatch fleets per planet.
+- **`AiPlayerTargetService`** – Resolves the active strategy and selects attack/espionage targets.
+- **`AiPlayerService`** – Manages AI player creation and lifecycle.
+
+### AI Logging
+
+Each action is persisted to `ai_player_logs` with:
+- `action_type` – e.g. `build_building`, `start_research`, `build_units`, `fleet_action`, `colonize`, `resource_wait`, `sleep_skip`, `idle_skip`.
+- `status` – `success`, `skipped`, or `failed`.
+- `action_data` – JSON payload (object ID, resource shortfalls, etc.).
+- `error_message` – Set when `status = failed`.
+
+`resource_wait` with `status = skipped` is logged when a build/research/unit action is skipped due to insufficient resources; `action_data` carries `object_id` and a `missing` map of metal/crystal/deuterium shortfalls.
+
+### AI CLI Commands
+
+```bash
+# Create AI players
+php artisan ogamex:ai:create {profile} [--count=1] [--difficulty=3] [--activate]
+
+# Run the AI daemon (continuous loop)
+php artisan ogamex:ai:daemon [--interval=30] [--max-cycles=0] [--memory-limit=256] [--debug]
+
+# Delete an AI player
+php artisan ogamex:ai:delete {id}
+
+# List all AI players
+php artisan ogamex:ai:list
+
+# Show daemon/AI status
+php artisan ogamex:ai:status
+```
+
+### Admin UI
+
+The admin panel at `/admin/ai-players` provides a full CRUD interface for managing AI players, viewing per-player action logs, controlling the daemon, and toggling individual AI players on or off.
