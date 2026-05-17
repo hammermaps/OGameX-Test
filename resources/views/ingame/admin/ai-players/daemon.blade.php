@@ -19,7 +19,7 @@
                     <div class="group bborder" style="display: block;" id="daemon-status">
                         <div class="fieldwrapper">
                             <label class="styled textBeefy">@lang('Status:')</label>
-                            <div class="thefield">
+                            <div class="thefield" id="ai-daemon-status">
                                 @if ($daemonStatus->isRunning())
                                     <span style="color: #00cc00; font-weight: bold;">● @lang('Running')</span>
                                 @else
@@ -29,7 +29,7 @@
                         </div>
                         <div class="fieldwrapper">
                             <label class="styled textBeefy">@lang('PID:')</label>
-                            <div class="thefield">{{ $daemonStatus->pid ?? '-' }}</div>
+                            <div class="thefield" id="ai-daemon-pid">{{ $daemonStatus->pid ?? '-' }}</div>
                         </div>
                         <div class="fieldwrapper">
                             <label class="styled textBeefy">@lang('Started At:')</label>
@@ -37,23 +37,23 @@
                         </div>
                         <div class="fieldwrapper">
                             <label class="styled textBeefy">@lang('Uptime:')</label>
-                            <div class="thefield">{{ $daemonStatus->getUptime() }}</div>
+                            <div class="thefield" id="ai-daemon-uptime">{{ $daemonStatus->getUptime() }}</div>
                         </div>
                         <div class="fieldwrapper">
                             <label class="styled textBeefy">@lang('Last Heartbeat:')</label>
-                            <div class="thefield">{{ $daemonStatus->last_heartbeat_at?->diffForHumans() ?? '-' }}</div>
+                            <div class="thefield" id="ai-daemon-heartbeat">{{ $daemonStatus->last_heartbeat_at?->diffForHumans() ?? '-' }}</div>
                         </div>
                         <div class="fieldwrapper">
                             <label class="styled textBeefy">@lang('Memory Usage:')</label>
-                            <div class="thefield">{{ $daemonStatus->getFormattedMemoryUsage() }}</div>
+                            <div class="thefield" id="ai-daemon-memory">{{ $daemonStatus->getFormattedMemoryUsage() }}</div>
                         </div>
                         <div class="fieldwrapper">
                             <label class="styled textBeefy">@lang('Players Processed (last cycle):')</label>
-                            <div class="thefield">{{ $daemonStatus->players_processed }}</div>
+                            <div class="thefield" id="ai-daemon-players-processed">{{ $daemonStatus->players_processed }}</div>
                         </div>
                         <div class="fieldwrapper">
                             <label class="styled textBeefy">@lang('Total Actions Executed:')</label>
-                            <div class="thefield">{{ number_format($daemonStatus->total_actions_executed) }}</div>
+                            <div class="thefield" id="ai-daemon-actions">{{ number_format($daemonStatus->total_actions_executed) }}</div>
                         </div>
                     </div>
 
@@ -90,11 +90,11 @@
                     <div class="group bborder" style="display: block;">
                         <div class="fieldwrapper">
                             <label class="styled textBeefy">@lang('Total AI Players:')</label>
-                            <div class="thefield">{{ $totalCount }}</div>
+                            <div class="thefield" id="ai-daemon-total-players">{{ $totalCount }}</div>
                         </div>
                         <div class="fieldwrapper">
                             <label class="styled textBeefy">@lang('Active Players:')</label>
-                            <div class="thefield">{{ $activeCount }}</div>
+                            <div class="thefield" id="ai-daemon-active-players">{{ $activeCount }}</div>
                         </div>
                     </div>
 
@@ -140,7 +140,9 @@
                     <div class="group bborder" style="display: block; text-align: center; padding: 10px;">
                         <a href="{{ route('admin.ai-players.index') }}" class="btn_blue">@lang('Back to AI Players')</a>
                         <a href="{{ route('admin.ai-players.activity-log') }}" class="btn_blue">@lang('Activity Log')</a>
-                        <button id="toggleAutoRefresh" class="btn_blue" onclick="toggleAutoRefresh()">@lang('Auto-Refresh: OFF')</button>
+                        <a href="{{ route('admin.ai-players.settings') }}" class="btn_blue">@lang('AI Settings')</a>
+                        <button type="button" id="toggleAutoRefresh" class="btn_blue" onclick="toggleAutoRefresh()">@lang('Auto-Refresh: ON')</button>
+                        <span id="autoRefreshUpdatedAt" class="textTip" style="margin-left: 10px;">@lang('Updated:') -</span>
                     </div>
 
                 </div>
@@ -148,27 +150,73 @@
         </div>
     </div>
 
-    {{-- Optional auto-refresh with toggle --}}
+    {{-- Live auto-update of the daemon status via JSON. Default: ON, interval from global settings. --}}
     <script>
-        var autoRefreshEnabled = false;
-        var autoRefreshTimer = null;
+        (function () {
+            var statusUrl = @json(route('admin.ai-players.daemon.json'));
+            var intervalSeconds = @json(max(1, (int) $settings->autoupdate_daemon_interval_seconds));
+            var autoRefreshEnabled = true;
+            var autoRefreshTimer = null;
 
-        function toggleAutoRefresh() {
-            autoRefreshEnabled = !autoRefreshEnabled;
-            var btn = document.getElementById('toggleAutoRefresh');
-            if (autoRefreshEnabled) {
-                btn.textContent = '@lang("Auto-Refresh: ON")';
-                autoRefreshTimer = setInterval(function() {
-                    location.reload();
-                }, 10000);
-            } else {
-                btn.textContent = '@lang("Auto-Refresh: OFF")';
-                if (autoRefreshTimer) {
+            function setText(id, value) {
+                var el = document.getElementById(id);
+                if (el !== null) {
+                    el.textContent = value;
+                }
+            }
+
+            function refresh() {
+                fetch(statusUrl, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+                    .then(function (resp) { return resp.ok ? resp.json() : null; })
+                    .then(function (data) {
+                        if (data === null) {
+                            return;
+                        }
+                        var d = data.daemon || {};
+                        setText('ai-daemon-status', d.is_running ? '@lang('Running')' : (d.status || '-'));
+                        setText('ai-daemon-pid', d.pid !== null && d.pid !== undefined ? d.pid : '-');
+                        setText('ai-daemon-uptime', d.uptime || '-');
+                        setText('ai-daemon-memory', d.memory || '-');
+                        setText('ai-daemon-heartbeat', d.last_heartbeat_human || '-');
+                        setText('ai-daemon-actions', new Intl.NumberFormat().format(d.total_actions_executed || 0));
+                        setText('ai-daemon-players-processed', d.players_processed != null ? d.players_processed : '-');
+                        var c = data.counts || {};
+                        setText('ai-daemon-total-players', c.total_players != null ? c.total_players : '-');
+                        setText('ai-daemon-active-players', c.active_players != null ? c.active_players : '-');
+                        setText('autoRefreshUpdatedAt', '@lang('Updated:') ' + new Date().toLocaleTimeString());
+                    })
+                    .catch(function () { /* ignore transient network errors */ });
+            }
+
+            function start() {
+                if (autoRefreshTimer === null) {
+                    autoRefreshTimer = setInterval(refresh, intervalSeconds * 1000);
+                }
+            }
+            function stop() {
+                if (autoRefreshTimer !== null) {
                     clearInterval(autoRefreshTimer);
                     autoRefreshTimer = null;
                 }
             }
-        }
+
+            window.toggleAutoRefresh = function () {
+                autoRefreshEnabled = !autoRefreshEnabled;
+                var btn = document.getElementById('toggleAutoRefresh');
+                if (autoRefreshEnabled) {
+                    if (btn) { btn.textContent = '@lang('Auto-Refresh: ON')'; }
+                    refresh();
+                    start();
+                } else {
+                    if (btn) { btn.textContent = '@lang('Auto-Refresh: OFF')'; }
+                    stop();
+                }
+            };
+
+            // Kick off immediately on load.
+            refresh();
+            start();
+        })();
     </script>
 
 @endsection

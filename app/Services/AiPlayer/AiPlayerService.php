@@ -9,6 +9,7 @@ use OGame\Enums\AiPlayerProfile;
 use OGame\Factories\PlanetServiceFactory;
 use OGame\Factories\PlayerServiceFactory;
 use OGame\Models\AiDaemonStatus;
+use OGame\Models\AiGlobalSettings;
 use OGame\Models\AiPlayer;
 use OGame\Models\AiPlayerLog;
 use OGame\Models\User;
@@ -139,13 +140,53 @@ class AiPlayerService
      */
     public function getActiveDuePlayers(): Collection
     {
-        return AiPlayer::where('is_active', true)
+        $settings = $this->getGlobalSettings();
+        $query = AiPlayer::where('is_active', true)
             ->where(function ($query) {
                 $query->whereNull('next_action_at')
                     ->orWhere('next_action_at', '<=', now());
             })
-            ->with('user')
-            ->get();
+            ->with('user');
+
+        // Enforce the per-cycle player cap from the global settings so the daemon
+        // never processes more players than configured by the admin.
+        if ($settings->max_concurrent_players > 0) {
+            $query->limit($settings->max_concurrent_players);
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * Get the singleton global AI settings record.
+     */
+    public function getGlobalSettings(): AiGlobalSettings
+    {
+        return AiGlobalSettings::singleton();
+    }
+
+    /**
+     * Update the global AI settings with the validated values supplied by the admin.
+     *
+     * @param array{
+     *     daemon_enabled?: bool,
+     *     max_concurrent_players?: int,
+     *     default_action_interval_min?: int,
+     *     default_action_interval_max?: int,
+     *     default_sleep_start?: string,
+     *     default_sleep_end?: string,
+     *     log_retention_days?: int,
+     *     autoupdate_daemon_interval_seconds?: int,
+     *     autoupdate_logs_interval_seconds?: int,
+     * } $values
+     */
+    public function updateGlobalSettings(array $values): AiGlobalSettings
+    {
+        $settings = $this->getGlobalSettings();
+        $settings->fill($values);
+        $settings->save();
+
+        return $settings;
     }
 
     /**

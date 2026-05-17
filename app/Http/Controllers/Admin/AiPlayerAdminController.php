@@ -3,6 +3,7 @@
 namespace OGame\Http\Controllers\Admin;
 
 use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -34,6 +35,7 @@ class AiPlayerAdminController extends OGameController
             'totalCount' => $aiPlayers->count(),
             'totalActionsToday' => $totalActionsToday,
             'profiles' => AiPlayerProfile::cases(),
+            'settings' => $aiPlayerService->getGlobalSettings(),
         ]);
     }
 
@@ -211,13 +213,14 @@ class AiPlayerAdminController extends OGameController
             'activeCount' => $activeCount,
             'totalCount' => $aiPlayers->count(),
             'recentErrors' => $recentErrors,
+            'settings' => $aiPlayerService->getGlobalSettings(),
         ]);
     }
 
     /**
      * Show logs for a specific AI player (or all).
      */
-    public function logs(int $id, Request $request): View
+    public function logs(int $id, Request $request, AiPlayerService $aiPlayerService): View
     {
         $aiPlayer = AiPlayer::with('user')->findOrFail($id);
         $query = AiPlayerLog::where('ai_player_id', $id);
@@ -237,13 +240,14 @@ class AiPlayerAdminController extends OGameController
             'logs' => $logs,
             'filterActionType' => $request->input('action_type', ''),
             'filterStatus' => $request->input('status', ''),
+            'settings' => $aiPlayerService->getGlobalSettings(),
         ]);
     }
 
     /**
      * Global activity log across all AI players, separated by account.
      */
-    public function activityLog(Request $request): View
+    public function activityLog(Request $request, AiPlayerService $aiPlayerService): View
     {
         $query = AiPlayerLog::with(['aiPlayer.user']);
 
@@ -325,6 +329,176 @@ class AiPlayerAdminController extends OGameController
             'filterStatus' => $request->input('status', ''),
             'filterDateFrom' => $request->input('date_from', ''),
             'filterDateTo' => $request->input('date_to', ''),
+            'settings' => $aiPlayerService->getGlobalSettings(),
         ]);
+    }
+
+    /**
+     * Show the global AI settings form.
+     */
+    public function settings(AiPlayerService $aiPlayerService): View
+    {
+        return view('ingame.admin.ai-players.settings')->with([
+            'settings' => $aiPlayerService->getGlobalSettings(),
+        ]);
+    }
+
+    /**
+     * Persist the global AI settings.
+     */
+    public function updateSettings(Request $request, AiPlayerService $aiPlayerService): RedirectResponse
+    {
+        $validated = $request->validate([
+            'daemon_enabled' => ['sometimes', 'boolean'],
+            'max_concurrent_players' => ['required', 'integer', 'min:1', 'max:10000'],
+            'default_action_interval_min' => ['required', 'integer', 'min:10'],
+            'default_action_interval_max' => ['required', 'integer', 'min:10'],
+            'default_sleep_start' => ['required', 'date_format:H:i'],
+            'default_sleep_end' => ['required', 'date_format:H:i'],
+            'log_retention_days' => ['required', 'integer', 'min:0', 'max:3650'],
+            'autoupdate_daemon_interval_seconds' => ['required', 'integer', 'min:1', 'max:3600'],
+            'autoupdate_logs_interval_seconds' => ['required', 'integer', 'min:1', 'max:3600'],
+        ]);
+
+        $validated['daemon_enabled'] = !empty($validated['daemon_enabled']);
+
+        if ($validated['default_action_interval_min'] > $validated['default_action_interval_max']) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', __('Action interval minimum must be less than or equal to the maximum.'));
+        }
+
+        $aiPlayerService->updateGlobalSettings($validated);
+
+        return redirect()->route('admin.ai-players.settings')
+            ->with('status', __('AI settings updated.'));
+    }
+
+    /**
+     * JSON: live daemon status snapshot used by the admin auto-update UI.
+     */
+    public function daemonStatusJson(AiPlayerService $aiPlayerService): JsonResponse
+    {
+        $daemonStatus = $aiPlayerService->getDaemonStatus();
+        $aiPlayers = $aiPlayerService->getAiPlayers();
+        $activeCount = $aiPlayers->where('is_active', true)->count();
+        $actionsToday = AiPlayerLog::where('created_at', '>=', now()->startOfDay())->count();
+        $failuresToday = AiPlayerLog::where('created_at', '>=', now()->startOfDay())
+            ->where('status', 'failed')
+            ->count();
+
+        return response()->json([
+            'now' => now()->toIso8601String(),
+            'daemon' => [
+                'status' => $daemonStatus->status,
+                'is_running' => $daemonStatus->isRunning(),
+                'pid' => $daemonStatus->pid,
+                'uptime' => $daemonStatus->getUptime(),
+                'memory' => $daemonStatus->getFormattedMemoryUsage(),
+                'last_heartbeat_at' => $daemonStatus->last_heartbeat_at?->toIso8601String(),
+                'last_heartbeat_human' => $daemonStatus->last_heartbeat_at?->diffForHumans(),
+                'players_processed' => (int) $daemonStatus->players_processed,
+                'total_actions_executed' => (int) $daemonStatus->total_actions_executed,
+                'error_log' => $daemonStatus->error_log,
+            ],
+            'counts' => [
+                'total_players' => $aiPlayers->count(),
+                'active_players' => $activeCount,
+                'actions_today' => $actionsToday,
+                'failures_today' => $failuresToday,
+            ],
+        ]);
+    }
+
+    /**
+     * JSON: incremental activity log feed. Returns log entries newer than `since`
+     * (ISO 8601 timestamp). Limited to 200 rows per request to keep payloads small.
+     */
+    public function activityLogJson(Request $request): JsonResponse
+    {
+        $since = $this->parseSince($request->input('since'));
+        $limit = min(200, max(1, (int) $request->input('limit', 50)));
+
+        $query = AiPlayerLog::with(['aiPlayer.user'])
+            ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc')
+            ->limit($limit);
+
+        if ($since !== null) {
+            $query->where('created_at', '>', $since);
+        }
+
+        return response()->json([
+            'now' => now()->toIso8601String(),
+            'entries' => $this->mapLogEntries($query->get()->all()),
+        ]);
+    }
+
+    /**
+     * JSON: incremental log feed for a specific AI player.
+     */
+    public function playerLogsJson(int $id, Request $request): JsonResponse
+    {
+        $aiPlayer = AiPlayer::with('user')->findOrFail($id);
+        $since = $this->parseSince($request->input('since'));
+        $limit = min(200, max(1, (int) $request->input('limit', 50)));
+
+        $query = AiPlayerLog::where('ai_player_id', $aiPlayer->id)
+            ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc')
+            ->limit($limit);
+
+        if ($since !== null) {
+            $query->where('created_at', '>', $since);
+        }
+
+        return response()->json([
+            'now' => now()->toIso8601String(),
+            'ai_player_id' => $aiPlayer->id,
+            'entries' => $this->mapLogEntries($query->get()->all()),
+        ]);
+    }
+
+    /**
+     * Parse a `since` query parameter (ISO 8601 string) into a Carbon instance, or
+     * return null when the parameter is missing or malformed.
+     */
+    private function parseSince(mixed $raw): ?\Illuminate\Support\Carbon
+    {
+        if (!is_string($raw) || $raw === '') {
+            return null;
+        }
+
+        try {
+            return \Illuminate\Support\Carbon::parse($raw);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Convert AiPlayerLog rows into a stable JSON shape for the admin UI.
+     *
+     * @param list<AiPlayerLog> $logs
+     * @return list<array<string, mixed>>
+     */
+    private function mapLogEntries(array $logs): array
+    {
+        $entries = [];
+        foreach ($logs as $log) {
+            $entries[] = [
+                'id' => $log->id,
+                'ai_player_id' => $log->ai_player_id,
+                'username' => $log->aiPlayer?->user?->username,
+                'profile' => $log->aiPlayer?->profile,
+                'action_type' => $log->action_type,
+                'action_data' => $log->action_data,
+                'status' => $log->status,
+                'error_message' => $log->error_message,
+                'created_at' => $log->created_at?->toIso8601String(),
+                'created_at_human' => $log->created_at?->diffForHumans(),
+            ];
+        }
+        return $entries;
     }
 }

@@ -141,7 +141,7 @@
                                     <th>@lang('Details')</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="ai-activity-log-tbody">
                                 @foreach ($logs as $log)
                                     <tr>
                                         <td>{{ $log->id }}</td>
@@ -190,11 +190,112 @@
 
                     <div class="group bborder" style="display: block; text-align: center; padding: 10px;">
                         <a href="{{ route('admin.ai-players.index') }}" class="btn_blue">@lang('Back to AI Players')</a>
+                        <a href="{{ route('admin.ai-players.daemon') }}" class="btn_blue">@lang('Daemon Monitor')</a>
+                        <button type="button" id="toggleAutoRefresh" class="btn_blue" onclick="toggleAutoRefresh()">@lang('Auto-Refresh: ON')</button>
+                        <span id="autoRefreshUpdatedAt" class="textTip" style="margin-left: 10px;">@lang('Updated:') -</span>
                     </div>
 
                 </div>
             </div>
         </div>
     </div>
+
+    {{-- Live tail: poll new log entries via JSON and prepend them to the table. --}}
+    <script>
+        (function () {
+            var feedUrl = @json(route('admin.ai-players.activity-log.json'));
+            var intervalSeconds = @json(max(1, (int) $settings->autoupdate_logs_interval_seconds));
+            var autoRefreshEnabled = true;
+            var autoRefreshTimer = null;
+            var lastSeen = null;
+
+            var tbody = document.getElementById('ai-activity-log-tbody');
+
+            // Seed lastSeen from the first row already rendered server-side (table is desc),
+            // using the timestamp from the data-row attribute we cannot rely on – fallback
+            // to the current time so we only fetch newer entries.
+            lastSeen = new Date().toISOString();
+
+            function escapeHtml(value) {
+                if (value === null || value === undefined) return '';
+                return String(value)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            function statusColor(status) {
+                if (status === 'success') return '#00cc00';
+                if (status === 'failed') return '#cc0000';
+                return '#cccc00';
+            }
+
+            function renderEntry(entry) {
+                var details = entry.error_message
+                    ? '<span style="color: #cc0000;">' + escapeHtml(entry.error_message) + '</span>'
+                    : (entry.action_data ? escapeHtml(JSON.stringify(entry.action_data)) : '-');
+
+                var profile = entry.profile ? entry.profile.charAt(0).toUpperCase() + entry.profile.slice(1) : '-';
+                var name = entry.username ? entry.username : ('#' + entry.ai_player_id);
+
+                return '<tr style="background-color: rgba(255, 255, 0, 0.08);">' +
+                    '<td>' + escapeHtml(entry.id) + '</td>' +
+                    '<td style="white-space: nowrap;">' + escapeHtml((entry.created_at || '').replace('T', ' ').replace(/\+.*$/, '').slice(0, 19)) + '</td>' +
+                    '<td>' + escapeHtml(name) + '</td>' +
+                    '<td>' + escapeHtml(profile) + '</td>' +
+                    '<td>' + escapeHtml(entry.action_type) + '</td>' +
+                    '<td><span style="color: ' + statusColor(entry.status) + ';">' + escapeHtml(entry.status) + '</span></td>' +
+                    '<td style="font-size: 10px; max-width: 280px; word-wrap: break-word;">' + details + '</td>' +
+                    '</tr>';
+            }
+
+            function refresh() {
+                if (tbody === null) return;
+                var url = feedUrl + (lastSeen ? ('?since=' + encodeURIComponent(lastSeen)) : '');
+                fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+                    .then(function (resp) { return resp.ok ? resp.json() : null; })
+                    .then(function (data) {
+                        if (data === null || !data.entries) return;
+                        // entries are newest first; prepend in oldest-first order so newest ends up on top.
+                        for (var i = data.entries.length - 1; i >= 0; i--) {
+                            var entry = data.entries[i];
+                            tbody.insertAdjacentHTML('afterbegin', renderEntry(entry));
+                            if (entry.created_at && (lastSeen === null || entry.created_at > lastSeen)) {
+                                lastSeen = entry.created_at;
+                            }
+                        }
+                        document.getElementById('autoRefreshUpdatedAt').textContent = '@lang('Updated:') ' + new Date().toLocaleTimeString();
+                    })
+                    .catch(function () { /* ignore transient errors */ });
+            }
+
+            function start() {
+                if (autoRefreshTimer === null) {
+                    autoRefreshTimer = setInterval(refresh, intervalSeconds * 1000);
+                }
+            }
+            function stop() {
+                if (autoRefreshTimer !== null) {
+                    clearInterval(autoRefreshTimer);
+                    autoRefreshTimer = null;
+                }
+            }
+            window.toggleAutoRefresh = function () {
+                autoRefreshEnabled = !autoRefreshEnabled;
+                var btn = document.getElementById('toggleAutoRefresh');
+                if (autoRefreshEnabled) {
+                    if (btn) btn.textContent = '@lang('Auto-Refresh: ON')';
+                    start();
+                } else {
+                    if (btn) btn.textContent = '@lang('Auto-Refresh: OFF')';
+                    stop();
+                }
+            };
+
+            start();
+        })();
+    </script>
 
 @endsection
