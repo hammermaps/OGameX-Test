@@ -166,9 +166,12 @@ class AiPlayerActionService
         $addedObjectIds = [];
 
         // Try to fill the available queue slots with diverse buildings from the priority list.
+        $lastResourceSkip = null;
         for ($i = 0; $i < $remainingSlots; $i++) {
             $buildingId = $strategy->decideBuildingPriority($planet, $playerService, $alreadyQueued);
             if ($buildingId === null) {
+                // Capture the resource skip (if any) so it can be logged once below.
+                $lastResourceSkip = $strategy->getLastResourceSkip();
                 break;
             }
 
@@ -208,6 +211,16 @@ class AiPlayerActionService
                 'object_ids' => $addedObjectIds,
                 'count'      => count($addedObjectIds),
             ], 'success');
+        } elseif ($lastResourceSkip !== null && $lastResourceSkip['kind'] === 'build') {
+            // Nothing was queued because no priority building was affordable in time.
+            // Surface this in the admin UI so it is clear the AI is waiting on resources
+            // rather than silently doing nothing.
+            $this->logAction($aiPlayer, 'resource_wait', [
+                'planet_id' => $planet->getPlanetId(),
+                'object_id' => $lastResourceSkip['object_id'],
+                'kind'      => 'build',
+                'missing'   => $lastResourceSkip['missing'],
+            ], 'skipped');
         }
 
         return count($addedObjectIds);
@@ -229,6 +242,16 @@ class AiPlayerActionService
 
         $researchId = $strategy->decideResearchPriority($playerService, $planet);
         if ($researchId === null) {
+            // Surface why nothing was started when the strategy held back due to resources.
+            $skip = $strategy->getLastResourceSkip();
+            if ($skip !== null && $skip['kind'] === 'research') {
+                $this->logAction($aiPlayer, 'resource_wait', [
+                    'planet_id' => $planet->getPlanetId(),
+                    'object_id' => $skip['object_id'],
+                    'kind'      => 'research',
+                    'missing'   => $skip['missing'],
+                ], 'skipped');
+            }
             return 0;
         }
 
@@ -271,10 +294,11 @@ class AiPlayerActionService
         foreach ($units as $objectId => $amount) {
             // Skip units whose per-unit cost exceeds storage capacity – such units can never
             // be afforded as resources cannot accumulate beyond the storage limit.
+            $perUnitCost = null;
             try {
                 $object = ObjectService::getObjectById($objectId);
-                $cost = ObjectService::getObjectPrice($object->machine_name, $planet);
-                if ($strategy->getStorageBottleneck($cost, $planet) !== null) {
+                $perUnitCost = ObjectService::getObjectPrice($object->machine_name, $planet);
+                if ($strategy->getStorageBottleneck($perUnitCost, $planet) !== null) {
                     Log::channel('ai')->info('Skipping unit build – cost exceeds storage capacity', [
                         'planet_id' => $planet->getPlanetId(),
                         'object_id' => $objectId,
@@ -291,23 +315,72 @@ class AiPlayerActionService
                 ]);
             }
 
+            // Cap the desired amount by how many we can currently afford from the planet's
+            // current resources. This avoids queuing 5 cargo ships when the planet only has
+            // metal for 1 – which would otherwise cause the queue service to fail.
+            $effectiveAmount = $amount;
+            if ($perUnitCost !== null) {
+                $affordable = $this->maxAffordableUnits($perUnitCost, $planet);
+                if ($affordable !== null) {
+                    $effectiveAmount = max(0, min($amount, $affordable));
+                }
+            }
+
+            if ($effectiveAmount <= 0) {
+                $this->logAction($aiPlayer, 'resource_wait', [
+                    'planet_id' => $planet->getPlanetId(),
+                    'object_id' => $objectId,
+                    'kind'      => 'unit_build',
+                    'requested' => $amount,
+                    'missing'   => $perUnitCost !== null ? $strategy->getMissingResources($perUnitCost, $planet) : null,
+                ], 'skipped');
+                continue;
+            }
+
             try {
-                $this->unitQueueService->add($planet, $objectId, $amount);
+                $this->unitQueueService->add($planet, $objectId, $effectiveAmount);
                 $this->logAction($aiPlayer, 'unit_build', [
                     'planet_id' => $planet->getPlanetId(),
                     'object_id' => $objectId,
-                    'amount' => $amount,
+                    'amount' => $effectiveAmount,
                 ], 'success');
                 $actionsCount++;
             } catch (Exception $e) {
                 $this->logAction($aiPlayer, 'unit_build', [
                     'planet_id' => $planet->getPlanetId(),
                     'object_id' => $objectId,
-                    'amount' => $amount,
+                    'amount' => $effectiveAmount,
                 ], 'failed', $e->getMessage());
             }
         }
         return $actionsCount;
+    }
+
+    /**
+     * Compute how many copies of a single-unit cost the planet can currently afford,
+     * based on the resources on hand. Returns null when the cost is fully zero (no
+     * resources required) so the caller does not apply any cap.
+     */
+    private function maxAffordableUnits(Resources $perUnitCost, PlanetService $planet): ?int
+    {
+        $available = $planet->getResources();
+        $caps = [];
+
+        if ($perUnitCost->metal->get() > 0) {
+            $caps[] = (int) floor($available->metal->get() / $perUnitCost->metal->get());
+        }
+        if ($perUnitCost->crystal->get() > 0) {
+            $caps[] = (int) floor($available->crystal->get() / $perUnitCost->crystal->get());
+        }
+        if ($perUnitCost->deuterium->get() > 0) {
+            $caps[] = (int) floor($available->deuterium->get() / $perUnitCost->deuterium->get());
+        }
+
+        if (empty($caps)) {
+            return null;
+        }
+
+        return max(0, min($caps));
     }
 
     /**

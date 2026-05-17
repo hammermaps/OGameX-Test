@@ -105,4 +105,34 @@ interface AiPlayerStrategyInterface
      * @return int|null
      */
     public function getStorageBottleneck(Resources $cost, PlanetService $planet): ?int;
+
+    /**
+     * Determine whether the planet can afford the given cost within a reasonable timeframe
+     * (current resources + hourly production extrapolated over $maxWaitSeconds). When
+     * $maxWaitSeconds is null a strategy-specific default is used.
+     *
+     * @param Resources $cost
+     * @param PlanetService $planet
+     * @param int|null $maxWaitSeconds
+     * @return bool
+     */
+    public function canAffordSoon(Resources $cost, PlanetService $planet, ?int $maxWaitSeconds = null): bool;
+
+    /**
+     * Compute the missing amount per resource needed to afford the given cost on the planet.
+     *
+     * @param Resources $cost
+     * @param PlanetService $planet
+     * @return array{metal: float, crystal: float, deuterium: float}
+     */
+    public function getMissingResources(Resources $cost, PlanetService $planet): array;
+
+    /**
+     * Get information about the most recent resource-based skip that the strategy
+     * recorded during decideBuildingPriority/decideResearchPriority. Returns null
+     * when the most recent decision call did not skip due to insufficient resources.
+     *
+     * @return array{kind: string, object_id: int, missing: array{metal: float, crystal: float, deuterium: float}}|null
+     */
+    public function getLastResourceSkip(): ?array;
 }

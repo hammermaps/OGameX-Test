@@ -16,6 +16,14 @@ use OGame\Services\PlayerService;
 abstract class AbstractStrategy implements AiPlayerStrategyInterface
 {
     /**
+     * Stores information about the most recent resource-based skip (building/research)
+     * so that AiPlayerActionService can emit a `resource_wait` log entry.
+     *
+     * @var array{kind: string, object_id: int, missing: array{metal: float, crystal: float, deuterium: float}}|null
+     */
+    private ?array $lastResourceSkip = null;
+
+    /**
      * Energy-producing building machine names, in order of preference.
      * When the planet has a negative energy balance the AI will try to build
      * one of these before following the normal priority list.
@@ -38,6 +46,27 @@ abstract class AbstractStrategy implements AiPlayerStrategyInterface
     protected const RESOURCE_COLONY_FIELD_THRESHOLD = 140;
 
     /**
+     * Default maximum number of seconds to wait for resources to accumulate before
+     * considering a building/research too expensive to queue right now.
+     *
+     * Equivalent to 4 hours.
+     */
+    protected const DEFAULT_MAX_AFFORD_WAIT_SECONDS = 14400;
+
+    /**
+     * Resource producers used as fallback when the next priority building is not yet
+     * affordable. Listed in order of preference.
+     *
+     * @var list<string>
+     */
+    protected const RESOURCE_PRODUCERS = [
+        'metal_mine',
+        'crystal_mine',
+        'deuterium_synthesizer',
+        'solar_plant',
+    ];
+
+    /**
      * Find the first building in the priority list that can be built on the planet.
      *
      * When the planet's energy balance is negative (consumption exceeds production)
@@ -51,6 +80,13 @@ abstract class AbstractStrategy implements AiPlayerStrategyInterface
      * consecutive calls within the same turn produce diverse queue entries instead
      * of repeatedly queuing the same building.
      *
+     * Also performs an affordability check: if the next priority building cannot be
+     * afforded within a reasonable timeframe (current resources + production within
+     * DEFAULT_MAX_AFFORD_WAIT_SECONDS) the strategy first tries to schedule a
+     * resource-producing fallback building so the planet keeps progressing. When
+     * neither the target nor a useful resource producer can be afforded soon, the
+     * skip reason is recorded for the caller via getLastResourceSkip().
+     *
      * @param PlanetService $planet
      * @param PlayerService $player
      * @param list<string> $alreadyQueued Machine names of buildings already scheduled in the queue.
@@ -58,6 +94,8 @@ abstract class AbstractStrategy implements AiPlayerStrategyInterface
      */
     public function decideBuildingPriority(PlanetService $planet, PlayerService $player, array $alreadyQueued = []): ?int
     {
+        $this->lastResourceSkip = null;
+
         // If energy is negative, try to build an energy producer first.
         if ($planet->energy()->get() < 0) {
             foreach (self::ENERGY_PRODUCERS as $machineName) {
@@ -80,6 +118,8 @@ abstract class AbstractStrategy implements AiPlayerStrategyInterface
         $priorityList = $this->isResourceColony($planet, $player)
             ? $this->getResourceColonyBuildingPriorityList()
             : $this->getBuildingPriorityList();
+
+        $firstUnaffordable = null;
 
         foreach ($priorityList as $machineName) {
             // Skip buildings that are already scheduled in the queue so the AI
@@ -112,6 +152,20 @@ abstract class AbstractStrategy implements AiPlayerStrategyInterface
                     // Storage upgrade already queued; skip this building for now.
                     continue;
                 }
+
+                // Resource-awareness: if we cannot afford this building soon, remember the
+                // first such occurrence (used later to record a `resource_wait` skip) and
+                // continue scanning the priority list for a cheaper option.
+                if (!$this->canAffordSoon($cost, $planet)) {
+                    if ($firstUnaffordable === null) {
+                        $object = ObjectService::getObjectByMachineName($machineName);
+                        $firstUnaffordable = [
+                            'object_id' => $object->id,
+                            'missing'   => $this->getMissingResources($cost, $planet),
+                        ];
+                    }
+                    continue;
+                }
             } catch (\Throwable $e) {
                 Log::channel('ai')->warning('Failed to check storage bottleneck for building', [
                     'machine_name' => $machineName,
@@ -124,11 +178,36 @@ abstract class AbstractStrategy implements AiPlayerStrategyInterface
             return $object->id;
         }
 
+        // No regular priority building was affordable. Try to fall back to a resource
+        // producer so the planet keeps growing instead of stalling completely.
+        $fallback = $this->pickResourceProducerFallback($planet, $alreadyQueued);
+        if ($fallback !== null) {
+            Log::channel('ai')->info('No affordable priority building – falling back to resource producer', [
+                'planet_id' => $planet->getPlanetId(),
+                'fallback'  => $fallback,
+            ]);
+            return $fallback;
+        }
+
+        // No affordable building at all – record the skip so AiPlayerActionService can log it.
+        if ($firstUnaffordable !== null) {
+            $this->lastResourceSkip = [
+                'kind'      => 'build',
+                'object_id' => $firstUnaffordable['object_id'],
+                'missing'   => $firstUnaffordable['missing'],
+            ];
+        }
+
         return null;
     }
 
     /**
      * Find the first research in the priority list that can be researched.
+     *
+     * Also performs an affordability check (see canAffordSoon). If no research in
+     * the priority list is affordable in the near future, the skip reason for the
+     * first unaffordable research is recorded so AiPlayerActionService can emit a
+     * `resource_wait` log entry.
      *
      * @param PlayerService $player
      * @param PlanetService $planet
@@ -136,14 +215,60 @@ abstract class AbstractStrategy implements AiPlayerStrategyInterface
      */
     public function decideResearchPriority(PlayerService $player, PlanetService $planet): ?int
     {
+        $this->lastResourceSkip = null;
+
+        $firstUnaffordable = null;
+
         foreach ($this->getResearchPriorityList() as $machineName) {
-            if ($this->canResearchObject($machineName, $planet)) {
-                $object = ObjectService::getObjectByMachineName($machineName);
-                return $object->id;
+            if (!$this->canResearchObject($machineName, $planet)) {
+                continue;
             }
+
+            try {
+                $cost = ObjectService::getObjectPrice($machineName, $planet);
+                if (!$this->canAffordSoon($cost, $planet)) {
+                    if ($firstUnaffordable === null) {
+                        $object = ObjectService::getObjectByMachineName($machineName);
+                        $firstUnaffordable = [
+                            'object_id' => $object->id,
+                            'missing'   => $this->getMissingResources($cost, $planet),
+                        ];
+                    }
+                    continue;
+                }
+            } catch (\Throwable $e) {
+                Log::channel('ai')->warning('Failed to check affordability for research', [
+                    'machine_name' => $machineName,
+                    'planet_id'    => $planet->getPlanetId(),
+                    'error'        => $e->getMessage(),
+                ]);
+            }
+
+            $object = ObjectService::getObjectByMachineName($machineName);
+            return $object->id;
+        }
+
+        if ($firstUnaffordable !== null) {
+            $this->lastResourceSkip = [
+                'kind'      => 'research',
+                'object_id' => $firstUnaffordable['object_id'],
+                'missing'   => $firstUnaffordable['missing'],
+            ];
         }
 
         return null;
+    }
+
+    /**
+     * Get information about the most recent resource-based skip recorded by
+     * decideBuildingPriority/decideResearchPriority, or null when the most recent
+     * decision did not skip due to resources.
+     *
+     * @return array{kind: string, object_id: int, missing: array{metal: float, crystal: float, deuterium: float}}|null
+     */
+    public function getLastResourceSkip(): ?array
+    {
+        return $this->lastResourceSkip;
     }
 
     /**
@@ -263,6 +388,107 @@ abstract class AbstractStrategy implements AiPlayerStrategyInterface
                 if ($this->canBuildObject($storageMachineName, $planet)) {
                     return ObjectService::getObjectByMachineName($storageMachineName)->id;
                 }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Determine whether the planet can afford a given cost within the configured
+     * waiting window using current resources plus hourly production.
+     *
+     * A cost is considered affordable when, for every non-zero resource required,
+     *   current_amount + production_per_second * maxWaitSeconds >= cost
+     *
+     * Resources whose production is zero (or negative) and whose current amount
+     * is below the requirement are never affordable through waiting, so this
+     * method returns false.
+     *
+     * Storage capacity is **not** re-checked here – getStorageBottleneck() is
+     * already used by decideBuildingPriority to detect cases where the cost
+     * structurally exceeds storage.
+     */
+    public function canAffordSoon(Resources $cost, PlanetService $planet, ?int $maxWaitSeconds = null): bool
+    {
+        $maxWaitSeconds = $maxWaitSeconds ?? self::DEFAULT_MAX_AFFORD_WAIT_SECONDS;
+        if ($maxWaitSeconds < 0) {
+            $maxWaitSeconds = 0;
+        }
+
+        $checks = [
+            [$cost->metal->get(),     $planet->metal()->get(),     $planet->getMetalProductionPerSecond()],
+            [$cost->crystal->get(),   $planet->crystal()->get(),   $planet->getCrystalProductionPerSecond()],
+            [$cost->deuterium->get(), $planet->deuterium()->get(), $planet->getDeuteriumProductionPerSecond()],
+        ];
+
+        foreach ($checks as [$needed, $available, $perSecond]) {
+            if ($needed <= 0) {
+                continue;
+            }
+            if ($available >= $needed) {
+                continue;
+            }
+            if ($perSecond <= 0) {
+                // No production – cannot accumulate the missing amount by waiting.
+                return false;
+            }
+            $missing = $needed - $available;
+            if ($missing / $perSecond > $maxWaitSeconds) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Compute the per-resource shortfall between a cost and what is currently
+     * available on the planet. Values are clamped to be non-negative.
+     *
+     * @return array{metal: float, crystal: float, deuterium: float}
+     */
+    public function getMissingResources(Resources $cost, PlanetService $planet): array
+    {
+        return [
+            'metal'     => max(0.0, $cost->metal->get()     - $planet->metal()->get()),
+            'crystal'   => max(0.0, $cost->crystal->get()   - $planet->crystal()->get()),
+            'deuterium' => max(0.0, $cost->deuterium->get() - $planet->deuterium()->get()),
+        ];
+    }
+
+    /**
+     * When no priority building is affordable in the near future, pick the first
+     * affordable resource producer (metal/crystal/deuterium/solar) that is not
+     * already queued, so the planet keeps progressing towards future builds.
+     *
+     * @param list<string> $alreadyQueued Machine names of buildings already in the queue.
+     */
+    protected function pickResourceProducerFallback(PlanetService $planet, array $alreadyQueued): ?int
+    {
+        foreach (self::RESOURCE_PRODUCERS as $machineName) {
+            if (in_array($machineName, $alreadyQueued, true)) {
+                continue;
+            }
+            if (!$this->canBuildObject($machineName, $planet)) {
+                continue;
+            }
+            try {
+                $cost = ObjectService::getObjectPrice($machineName, $planet);
+                if ($this->getStorageBottleneck($cost, $planet) !== null) {
+                    continue;
+                }
+                if (!$this->canAffordSoon($cost, $planet)) {
+                    continue;
+                }
+                $object = ObjectService::getObjectByMachineName($machineName);
+                return $object->id;
+            } catch (\Throwable $e) {
+                Log::channel('ai')->warning('Failed to evaluate resource producer fallback', [
+                    'machine_name' => $machineName,
+                    'planet_id'    => $planet->getPlanetId(),
+                    'error'        => $e->getMessage(),
+                ]);
             }
         }
 
