@@ -266,7 +266,8 @@
                                 lastSeen = entry.created_at;
                             }
                         }
-                        document.getElementById('autoRefreshUpdatedAt').textContent = '@lang('Updated:') ' + new Date().toLocaleTimeString();
+                        var el = document.getElementById('autoRefreshUpdatedAt');
+                        if (el) el.textContent = '@lang('Updated:') ' + new Date().toLocaleTimeString();
                     })
                     .catch(function () { /* ignore transient errors */ });
             }
