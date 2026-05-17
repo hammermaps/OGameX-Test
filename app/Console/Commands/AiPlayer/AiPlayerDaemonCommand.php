@@ -64,7 +64,17 @@ class AiPlayerDaemonCommand extends Command
             $cycle++;
 
             try {
-                $playersProcessed = $this->processCycle($actionService, $aiPlayerService, $daemonStatus, $debug);
+                // Honor the master switch from the global AI settings. When disabled
+                // the daemon idles instead of processing players, so admins can stop
+                // the AI globally without killing the long-running daemon process.
+                if (!$aiPlayerService->getGlobalSettings()->daemon_enabled) {
+                    if ($debug) {
+                        $this->line("[Cycle {$cycle}] daemon_enabled=false – skipping cycle.");
+                    }
+                    $playersProcessed = 0;
+                } else {
+                    $playersProcessed = $this->processCycle($actionService, $aiPlayerService, $daemonStatus, $debug);
+                }
 
                 // Update heartbeat
                 $daemonStatus->last_heartbeat_at = now();

@@ -298,14 +298,19 @@ Route::middleware(['auth', 'globalgame', 'locale', 'admin'])->group(function () 
     Route::get('/admin/ai-players', [AiPlayerAdminController::class, 'index'])->name('admin.ai-players.index');
     Route::get('/admin/ai-players/create', [AiPlayerAdminController::class, 'create'])->name('admin.ai-players.create');
     Route::post('/admin/ai-players', [AiPlayerAdminController::class, 'store'])->name('admin.ai-players.store');
+    Route::get('/admin/ai-players/settings', [AiPlayerAdminController::class, 'settings'])->name('admin.ai-players.settings');
+    Route::put('/admin/ai-players/settings', [AiPlayerAdminController::class, 'updateSettings'])->name('admin.ai-players.settings.update');
     Route::get('/admin/ai-players/daemon', [AiPlayerAdminController::class, 'daemon'])->name('admin.ai-players.daemon');
+    Route::get('/admin/ai-players/daemon/status.json', [AiPlayerAdminController::class, 'daemonStatusJson'])->name('admin.ai-players.daemon.json');
     Route::get('/admin/ai-players/activity-log', [AiPlayerAdminController::class, 'activityLog'])->name('admin.ai-players.activity-log');
-    Route::get('/admin/ai-players/{id}', [AiPlayerAdminController::class, 'show'])->name('admin.ai-players.show');
-    Route::put('/admin/ai-players/{id}', [AiPlayerAdminController::class, 'update'])->name('admin.ai-players.update');
-    Route::delete('/admin/ai-players/{id}', [AiPlayerAdminController::class, 'destroy'])->name('admin.ai-players.destroy');
-    Route::post('/admin/ai-players/{id}/toggle', [AiPlayerAdminController::class, 'toggle'])->name('admin.ai-players.toggle');
-    Route::post('/admin/ai-players/{id}/impersonate', [AiPlayerAdminController::class, 'impersonate'])->name('admin.ai-players.impersonate');
-    Route::get('/admin/ai-players/{id}/logs', [AiPlayerAdminController::class, 'logs'])->name('admin.ai-players.logs');
+    Route::get('/admin/ai-players/activity-log.json', [AiPlayerAdminController::class, 'activityLogJson'])->name('admin.ai-players.activity-log.json');
+    Route::get('/admin/ai-players/{id}', [AiPlayerAdminController::class, 'show'])->whereNumber('id')->name('admin.ai-players.show');
+    Route::put('/admin/ai-players/{id}', [AiPlayerAdminController::class, 'update'])->whereNumber('id')->name('admin.ai-players.update');
+    Route::delete('/admin/ai-players/{id}', [AiPlayerAdminController::class, 'destroy'])->whereNumber('id')->name('admin.ai-players.destroy');
+    Route::post('/admin/ai-players/{id}/toggle', [AiPlayerAdminController::class, 'toggle'])->whereNumber('id')->name('admin.ai-players.toggle');
+    Route::post('/admin/ai-players/{id}/impersonate', [AiPlayerAdminController::class, 'impersonate'])->whereNumber('id')->name('admin.ai-players.impersonate');
+    Route::get('/admin/ai-players/{id}/logs', [AiPlayerAdminController::class, 'logs'])->whereNumber('id')->name('admin.ai-players.logs');
+    Route::get('/admin/ai-players/{id}/logs.json', [AiPlayerAdminController::class, 'playerLogsJson'])->whereNumber('id')->name('admin.ai-players.logs.json');
 
     // Changelog
     Route::get('/admin/changelog', [AdminChangelogController::class, 'index'])->name('admin.changelog.index');
