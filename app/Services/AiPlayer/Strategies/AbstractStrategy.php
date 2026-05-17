@@ -242,6 +242,7 @@ abstract class AbstractStrategy implements AiPlayerStrategyInterface
                     'planet_id'    => $planet->getPlanetId(),
                     'error'        => $e->getMessage(),
                 ]);
+                continue;
             }
 
             $object = ObjectService::getObjectByMachineName($machineName);

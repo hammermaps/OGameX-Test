@@ -380,8 +380,8 @@ class AiPlayerAdminController extends OGameController
     public function daemonStatusJson(AiPlayerService $aiPlayerService): JsonResponse
     {
         $daemonStatus = $aiPlayerService->getDaemonStatus();
-        $aiPlayers = $aiPlayerService->getAiPlayers();
-        $activeCount = $aiPlayers->where('is_active', true)->count();
+        $totalPlayers = AiPlayer::count();
+        $activeCount = AiPlayer::where('is_active', true)->count();
         $actionsToday = AiPlayerLog::where('created_at', '>=', now()->startOfDay())->count();
         $failuresToday = AiPlayerLog::where('created_at', '>=', now()->startOfDay())
             ->where('status', 'failed')
@@ -402,7 +402,7 @@ class AiPlayerAdminController extends OGameController
                 'error_log' => $daemonStatus->error_log,
             ],
             'counts' => [
-                'total_players' => $aiPlayers->count(),
+                'total_players' => $totalPlayers,
                 'active_players' => $activeCount,
                 'actions_today' => $actionsToday,
                 'failures_today' => $failuresToday,

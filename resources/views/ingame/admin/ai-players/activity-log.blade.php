@@ -143,7 +143,7 @@
                             </thead>
                             <tbody id="ai-activity-log-tbody">
                                 @foreach ($logs as $log)
-                                    <tr>
+                                    <tr data-created-at="{{ $log->created_at?->toIso8601String() }}">
                                         <td>{{ $log->id }}</td>
                                         <td style="white-space: nowrap;">{{ $log->created_at?->format('Y-m-d H:i:s') ?? '-' }}</td>
                                         <td>
@@ -211,10 +211,14 @@
 
             var tbody = document.getElementById('ai-activity-log-tbody');
 
-            // Seed lastSeen from the first row already rendered server-side (table is desc),
-            // using the timestamp from the data-row attribute we cannot rely on – fallback
-            // to the current time so we only fetch newer entries.
-            lastSeen = new Date().toISOString();
+            // Seed lastSeen from the newest server-rendered row (table is desc).
+            // Fallback to current time when there is no rendered row timestamp.
+            if (tbody && tbody.firstElementChild) {
+                var seeded = tbody.firstElementChild.getAttribute('data-created-at');
+                lastSeen = seeded ? seeded : new Date().toISOString();
+            } else {
+                lastSeen = new Date().toISOString();
+            }
 
             function escapeHtml(value) {
                 if (value === null || value === undefined) return '';
@@ -240,7 +244,7 @@
                 var profile = entry.profile ? entry.profile.charAt(0).toUpperCase() + entry.profile.slice(1) : '-';
                 var name = entry.username ? entry.username : ('#' + entry.ai_player_id);
 
-                return '<tr style="background-color: rgba(255, 255, 0, 0.08);">' +
+                return '<tr data-created-at="' + escapeHtml(entry.created_at || '') + '" style="background-color: rgba(255, 255, 0, 0.08);">' +
                     '<td>' + escapeHtml(entry.id) + '</td>' +
                     '<td style="white-space: nowrap;">' + escapeHtml((entry.created_at || '').replace('T', ' ').replace(/\+.*$/, '').slice(0, 19)) + '</td>' +
                     '<td>' + escapeHtml(name) + '</td>' +
