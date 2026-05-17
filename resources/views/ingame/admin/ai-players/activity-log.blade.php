@@ -214,8 +214,8 @@
             // Seed lastSeen from the newest server-rendered row (table is desc).
             // Fallback to current time when there is no rendered row timestamp.
             if (tbody && tbody.firstElementChild) {
-                var seeded = tbody.firstElementChild.getAttribute('data-created-at');
-                lastSeen = seeded ? seeded : new Date().toISOString();
+                var newestTimestamp = tbody.firstElementChild.getAttribute('data-created-at');
+                lastSeen = newestTimestamp ? newestTimestamp : new Date().toISOString();
             } else {
                 lastSeen = new Date().toISOString();
             }
