@@ -192,6 +192,12 @@
             var BYTES_TO_MB = 1024 * 1024;
             var MB_DECIMAL_FACTOR = 100; // round to 2 decimal places
 
+            // Charts are optional: if Chart.js failed to load (CDN blocked, SRI mismatch,
+            // etc.) polling still functions; chart data points are simply discarded.
+            var chartsAvailable = typeof window.Chart === 'function';
+            var memoryChart = null;
+            var playersChart = null;
+
             function makeChart(canvasId, labels, dataArray, borderColor, bgColor, stepped) {
                 return new Chart(document.getElementById(canvasId), {
                     type: 'line',
@@ -227,10 +233,15 @@
                 });
             }
 
-            var memoryChart = makeChart('chart-memory', chartLabels, memoryData, COLOR_MEMORY_BORDER, COLOR_MEMORY, false);
-            var playersChart = makeChart('chart-players', chartLabels, playersData, COLOR_PLAYERS_BORDER, COLOR_PLAYERS, true);
+            if (chartsAvailable) {
+                memoryChart = makeChart('chart-memory', chartLabels, memoryData, COLOR_MEMORY_BORDER, COLOR_MEMORY, false);
+                playersChart = makeChart('chart-players', chartLabels, playersData, COLOR_PLAYERS_BORDER, COLOR_PLAYERS, true);
+            }
 
             function pushChartPoint(label, memBytes, players) {
+                if (!chartsAvailable) {
+                    return;
+                }
                 chartLabels.push(label);
                 memoryData.push(memBytes > 0 ? Math.round(memBytes / BYTES_TO_MB * MB_DECIMAL_FACTOR) / MB_DECIMAL_FACTOR : 0);
                 playersData.push(players);

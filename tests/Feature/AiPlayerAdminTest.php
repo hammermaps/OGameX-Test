@@ -117,9 +117,10 @@ class AiPlayerAdminTest extends AccountTestCase
         $response->assertStatus(200);
         $response->assertJsonStructure([
             'now',
-            'daemon' => ['status', 'is_running', 'pid', 'uptime', 'memory', 'players_processed', 'total_actions_executed'],
+            'daemon' => ['status', 'is_running', 'pid', 'uptime', 'memory', 'memory_usage_bytes', 'players_processed', 'total_actions_executed'],
             'counts' => ['total_players', 'active_players', 'actions_today', 'failures_today'],
         ]);
+        $response->assertJsonPath('daemon.memory_usage_bytes', fn ($v) => is_int($v));
     }
 
     /**
