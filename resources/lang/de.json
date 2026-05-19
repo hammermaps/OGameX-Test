@@ -79,7 +79,7 @@
   "Last Heartbeat:": "Letzter Heartbeat:",
   "List Players:": "Spieler auflisten:",
   "Log retention (days):": "Protokollaufbewahrung (Tage):",
-  "Logging &amp; Auto-Update": "Protokollierung & Auto-Aktualisierung",
+  "Logging &amp; Auto-Update": "Protokollierung &amp; Auto-Aktualisierung",
   "Logs": "Protokolle",
   "Logs auto-update (s):": "Protokolle Auto-Aktualisierung (s):",
   "Master switch. When off the daemon idles instead of processing AI players.": "Hauptschalter. Wenn deaktiviert, läuft der Daemon im Leerlauf statt KI-Spieler zu verarbeiten.",
