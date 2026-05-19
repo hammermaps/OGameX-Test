@@ -98,6 +98,21 @@
                         </div>
                     </div>
 
+                    {{-- ===== DAEMON STATISTICS CHARTS ===== --}}
+                    <p class="box_highlight textCenter no_buddies">@lang('Daemon Statistics')</p>
+                    <div class="group bborder" style="display: block; padding: 10px;">
+                        <div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: space-around;">
+                            <div style="flex: 1; min-width: 280px; max-width: 520px;">
+                                <p style="text-align: center; font-weight: bold; margin-bottom: 6px; font-size: 12px;">@lang('Memory Usage (MB)')</p>
+                                <canvas id="chart-memory" height="120"></canvas>
+                            </div>
+                            <div style="flex: 1; min-width: 280px; max-width: 520px;">
+                                <p style="text-align: center; font-weight: bold; margin-bottom: 6px; font-size: 12px;">@lang('Players Processed (last cycle)')</p>
+                                <canvas id="chart-players" height="120"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
                     {{-- ===== LAST ERROR ===== --}}
                     @if ($daemonStatus->error_log)
                         <p class="box_highlight textCenter no_buddies">@lang('Last Daemon Error')</p>
@@ -150,6 +165,9 @@
         </div>
     </div>
 
+    {{-- Chart.js for daemon statistics --}}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js" integrity="sha256-3t7SgRSMFGlQe9DVRaMX6eFm8KxJSuBmRQSrPrVXkco=" crossorigin="anonymous"></script>
+
     {{-- Live auto-update of the daemon status via JSON. Default: ON, interval from global settings. --}}
     <script>
         (function () {
@@ -157,6 +175,73 @@
             var intervalSeconds = @json(max(1, (int) $settings->autoupdate_daemon_interval_seconds));
             var autoRefreshEnabled = true;
             var autoRefreshTimer = null;
+
+            // Rolling chart data (max 30 data points)
+            var MAX_POINTS = 30;
+            var chartLabels = [];
+            var memoryData = [];
+            var playersData = [];
+
+            // Chart.js colour constants
+            var COLOR_MEMORY  = 'rgba(0, 153, 255, 0.85)';
+            var COLOR_MEMORY_BORDER  = 'rgba(0, 153, 255, 1)';
+            var COLOR_PLAYERS = 'rgba(0, 204, 102, 0.85)';
+            var COLOR_PLAYERS_BORDER = 'rgba(0, 204, 102, 1)';
+
+            // Conversion constants
+            var BYTES_TO_MB = 1024 * 1024;
+            var MB_DECIMAL_FACTOR = 100; // round to 2 decimal places
+
+            function makeChart(canvasId, labels, dataArray, borderColor, bgColor, stepped) {
+                return new Chart(document.getElementById(canvasId), {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: dataArray,
+                            borderColor: borderColor,
+                            backgroundColor: bgColor,
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            fill: true,
+                            tension: 0.3,
+                            stepped: stepped || false
+                        }]
+                    },
+                    options: {
+                        animation: false,
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: {
+                                ticks: { color: '#aaa', font: { size: 10 }, maxTicksLimit: 6 },
+                                grid: { color: 'rgba(255,255,255,0.05)' }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                ticks: { color: '#aaa', font: { size: 10 }, maxTicksLimit: 6 },
+                                grid: { color: 'rgba(255,255,255,0.08)' }
+                            }
+                        }
+                    }
+                });
+            }
+
+            var memoryChart = makeChart('chart-memory', chartLabels, memoryData, COLOR_MEMORY_BORDER, COLOR_MEMORY, false);
+            var playersChart = makeChart('chart-players', chartLabels, playersData, COLOR_PLAYERS_BORDER, COLOR_PLAYERS, true);
+
+            function pushChartPoint(label, memBytes, players) {
+                chartLabels.push(label);
+                memoryData.push(memBytes > 0 ? Math.round(memBytes / BYTES_TO_MB * MB_DECIMAL_FACTOR) / MB_DECIMAL_FACTOR : 0);
+                playersData.push(players);
+                if (chartLabels.length > MAX_POINTS) {
+                    chartLabels.shift();
+                    memoryData.shift();
+                    playersData.shift();
+                }
+                memoryChart.update();
+                playersChart.update();
+            }
 
             function setText(id, value) {
                 var el = document.getElementById(id);
@@ -183,7 +268,11 @@
                         var c = data.counts || {};
                         setText('ai-daemon-total-players', c.total_players != null ? c.total_players : '-');
                         setText('ai-daemon-active-players', c.active_players != null ? c.active_players : '-');
-                        setText('autoRefreshUpdatedAt', '@lang('Updated:') ' + new Date().toLocaleTimeString());
+                        var ts = new Date().toLocaleTimeString();
+                        setText('autoRefreshUpdatedAt', '@lang('Updated:') ' + ts);
+
+                        // Update charts with new data point
+                        pushChartPoint(ts, d.memory_usage_bytes || 0, d.players_processed != null ? d.players_processed : 0);
                     })
                     .catch(function () { /* ignore transient network errors */ });
             }

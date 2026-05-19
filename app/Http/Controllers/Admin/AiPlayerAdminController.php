@@ -395,6 +395,7 @@ class AiPlayerAdminController extends OGameController
                 'pid' => $daemonStatus->pid,
                 'uptime' => $daemonStatus->getUptime(),
                 'memory' => $daemonStatus->getFormattedMemoryUsage(),
+                'memory_usage_bytes' => (int) $daemonStatus->memory_usage,
                 'last_heartbeat_at' => $daemonStatus->last_heartbeat_at?->toIso8601String(),
                 'last_heartbeat_human' => $daemonStatus->last_heartbeat_at?->diffForHumans(),
                 'players_processed' => (int) $daemonStatus->players_processed,
