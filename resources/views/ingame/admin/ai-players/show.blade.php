@@ -57,7 +57,7 @@
                         </div>
                         <div class="fieldwrapper">
                             <label class="styled textBeefy">@lang('Last Action:')</label>
-                            <div class="thefield">{{ $aiPlayer->last_action_at?->diffForHumans() ?? 'Never' }}</div>
+                            <div class="thefield">{{ $aiPlayer->last_action_at?->diffForHumans() ?? __('Never') }}</div>
                         </div>
                     </div>
 
