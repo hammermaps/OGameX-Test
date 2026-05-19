@@ -169,6 +169,12 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js" integrity="sha256-3t7SgRSMFGlQe9DVRaMX6eFm8KxJSuBmRQSrPrVXkco=" crossorigin="anonymous"></script>
 
     {{-- Live auto-update of the daemon status via JSON. Default: ON, interval from global settings. --}}
+    @php
+        // Mirror the JavaScript chart conversion constants so the server-side seed
+        // uses the same rounding logic as the client-side polling updates.
+        $chartBytesToMb     = 1024 * 1024;
+        $chartMbDecimalFactor = 100;
+    @endphp
     <script>
         (function () {
             var statusUrl = @json(route('admin.ai-players.daemon.json'));
@@ -178,19 +184,19 @@
 
             // Rolling chart data (max 30 data points)
             var MAX_POINTS = 30;
-            var chartLabels = [];
-            var memoryData = [];
-            var playersData = [];
+            var BYTES_TO_MB = @json($chartBytesToMb);
+            var MB_DECIMAL_FACTOR = @json($chartMbDecimalFactor);
+
+            // Seed chart arrays with historical data persisted to the database
+            var chartLabels = @json($metrics->map(fn ($m) => $m->recorded_at->format('H:i:s')));
+            var memoryData  = @json($metrics->map(fn ($m) => round($m->memory_usage_bytes / $chartBytesToMb * $chartMbDecimalFactor) / $chartMbDecimalFactor));
+            var playersData = @json($metrics->pluck('players_processed'));
 
             // Chart.js colour constants
             var COLOR_MEMORY  = 'rgba(0, 153, 255, 0.85)';
             var COLOR_MEMORY_BORDER  = 'rgba(0, 153, 255, 1)';
             var COLOR_PLAYERS = 'rgba(0, 204, 102, 0.85)';
             var COLOR_PLAYERS_BORDER = 'rgba(0, 204, 102, 1)';
-
-            // Conversion constants
-            var BYTES_TO_MB = 1024 * 1024;
-            var MB_DECIMAL_FACTOR = 100; // round to 2 decimal places
 
             // Charts are optional: if Chart.js failed to load (CDN blocked, SRI mismatch,
             // etc.) polling still functions; chart data points are simply discarded.

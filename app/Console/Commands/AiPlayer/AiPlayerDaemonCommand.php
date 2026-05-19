@@ -4,6 +4,7 @@ namespace OGame\Console\Commands\AiPlayer;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
+use OGame\Models\AiDaemonMetric;
 use OGame\Models\AiDaemonStatus;
 use OGame\Models\AiPlayer;
 use OGame\Models\AiPlayerLog;
@@ -79,8 +80,23 @@ class AiPlayerDaemonCommand extends Command
                 // Update heartbeat
                 $daemonStatus->last_heartbeat_at = now();
                 $daemonStatus->players_processed = $playersProcessed;
-                $daemonStatus->memory_usage = memory_get_usage(true);
+                $memoryBytes = memory_get_usage(true);
+                $daemonStatus->memory_usage = $memoryBytes;
                 $daemonStatus->save();
+
+                // Persist metric snapshot for chart history
+                AiDaemonMetric::create([
+                    'memory_usage_bytes' => $memoryBytes,
+                    'players_processed' => $playersProcessed,
+                    'recorded_at' => now(),
+                ]);
+                // Prune oldest rows beyond the retention limit
+                $maxId = AiDaemonMetric::orderBy('id', 'desc')
+                    ->skip(AiDaemonMetric::MAX_ROWS - 1)
+                    ->value('id');
+                if ($maxId !== null) {
+                    AiDaemonMetric::where('id', '<', $maxId)->delete();
+                }
 
                 if ($debug) {
                     $this->info("[Cycle {$cycle}] Processed {$playersProcessed} players | Memory: " . round(memory_get_usage(true) / 1024 / 1024, 2) . 'MB');
