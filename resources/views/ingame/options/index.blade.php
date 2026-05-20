@@ -202,7 +202,7 @@
                                         </div>
                                         <div class="category fieldwrapper alt bar">
                                             <label class="styled textBeefy" data-element="universegate">
-                                                <img class="universe-gate-option-icon" src="/img/objects/buildings/universe_gate_micro.jpg" width="28" height="28" alt="{{ __('t_ingame.options.section_universe_gate') }}">
+                                                <img class="universe-gate-option-icon" src="/img/objects/buildings/universe_gate_micro.jpg" width="28" height="28" alt="{{ __('t_ingame.options.section_universe_gate') }}" title="{{ __('t_ingame.options.section_universe_gate') }}">
                                                 {{ __('t_ingame.options.section_universe_gate') }}
                                             </label>
                                         </div>
