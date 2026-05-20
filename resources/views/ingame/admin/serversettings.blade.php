@@ -43,6 +43,12 @@
 
                         <div class="group bborder" style="display: block;">
                             <div class="fieldwrapper">
+                                <label class="styled textBeefy">@lang('Universe Gate:')</label>
+                                <div class="thefield">
+                                    <img src="/img/objects/buildings/universe_gate_small.jpg" width="40" height="40" alt="@lang('Universe Gate')" title="@lang('Universe Gate')">
+                                </div>
+                            </div>
+                            <div class="fieldwrapper">
                                 <a class="btn_blue" href="{{ route('admin.universe-gates.index') }}">@lang('Manage registered universes')</a>
                             </div>
                             <div class="fieldwrapper">

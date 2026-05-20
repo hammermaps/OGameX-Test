@@ -202,6 +202,7 @@
                                         </div>
                                         <div class="category fieldwrapper alt bar">
                                             <label class="styled textBeefy" data-element="universegate">
+                                                <img src="/img/objects/buildings/universe_gate_micro.jpg" width="28" height="28" alt="{{ __('t_ingame.options.section_universe_gate') }}" style="vertical-align: middle; margin-right: 6px;">
                                                 {{ __('t_ingame.options.section_universe_gate') }}
                                             </label>
                                         </div>
