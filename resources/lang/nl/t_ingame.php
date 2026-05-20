@@ -271,6 +271,8 @@ return [
         'mission_espionage'        => 'Spionage',
         'mission_acs_defend'       => 'ACS Verdedigen',
         'mission_attack'           => 'Aanval',
+        'target_universe'         => 'Doeluniversum',
+        'local_universe'          => 'Lokaal universum',
         'mission_acs_attack'       => 'ACS Aanval',
         'mission_destroy_moon'     => 'Maanvernietiging',
 
@@ -999,6 +1001,9 @@ return [
         // Tab 2 — Algemeen
         'section_spy_probes'                    => 'Spionagesondes',
         'spy_probes_amount'                     => 'Aantal spionagesondes:',
+        'section_universe_gate'                    => 'Universumpoort',
+        'universe_gate_enabled'                    => 'Universumpoort gebruiken:',
+        'universe_gate_hint'                       => 'Indien ingeschakeld kun je aanvallen via geregistreerde universumpoorten verzenden en door compatibele externe universums als doel worden gekozen.',
         'section_chat'                          => 'Chat',
         'disable_chat_bar'                      => 'Chatbalk deactiveren:',
         'section_warnings'                      => 'Waarschuwingen',

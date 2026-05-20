@@ -33,6 +33,10 @@ class ServerSettingsController extends OGameController
             'basic_income_energy' => $settingsService->basicIncomeEnergy(),
             'registration_planet_amount' => $settingsService->registrationPlanetAmount(),
             'universe_name' => $settingsService->universeName(),
+            'universe_gate_identifier' => $settingsService->universeGateIdentifier(),
+            'universe_gate_enabled' => $settingsService->universeGateEnabled(),
+            'universe_gate_cooldown_seconds' => $settingsService->universeGateCooldownSeconds(),
+            'universe_gate_deuterium_cost_multiplier' => $settingsService->universeGateDeuteriumCostMultiplier(),
             'planet_fields_bonus' => $settingsService->planetFieldsBonus(),
             'dark_matter_bonus' => $settingsService->darkMatterBonus(),
             'alliance_combat_system_on' => $settingsService->allianceCombatSystemOn(),
@@ -96,6 +100,11 @@ class ServerSettingsController extends OGameController
         $settingsService->set('basic_income_energy', request('basic_income_energy'));
 
         $settingsService->set('registration_planet_amount', request('registration_planet_amount'));
+        $settingsService->set('universe_name', request('universe_name', 'Universe'));
+        $settingsService->set('universe_gate_identifier', request('universe_gate_identifier', ''));
+        $settingsService->set('universe_gate_enabled', request('universe_gate_enabled', 0));
+        $settingsService->set('universe_gate_cooldown_seconds', request('universe_gate_cooldown_seconds', 604800));
+        $settingsService->set('universe_gate_deuterium_cost_multiplier', request('universe_gate_deuterium_cost_multiplier', 10));
 
         $settingsService->set('planet_fields_bonus', request('planet_fields_bonus'));
         $settingsService->set('dark_matter_bonus', request('dark_matter_bonus'));

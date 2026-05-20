@@ -377,6 +377,46 @@ class SettingsService
     }
 
     /**
+     * Returns the stable identifier of this universe for Universe Gate federation.
+     *
+     * @return string
+     */
+    public function universeGateIdentifier(): string
+    {
+        return $this->get('universe_gate_identifier', '');
+    }
+
+    /**
+     * Returns whether cross-universe Universe Gate features are enabled.
+     *
+     * @return bool
+     */
+    public function universeGateEnabled(): bool
+    {
+        return (bool)(int)$this->get('universe_gate_enabled', 0);
+    }
+
+    /**
+     * Returns the Universe Gate cooldown in seconds.
+     *
+     * @return int
+     */
+    public function universeGateCooldownSeconds(): int
+    {
+        return max(3600, (int)$this->get('universe_gate_cooldown_seconds', 604800));
+    }
+
+    /**
+     * Returns the deuterium cost multiplier for Universe Gate dispatches.
+     *
+     * @return int
+     */
+    public function universeGateDeuteriumCostMultiplier(): int
+    {
+        return max(1, (int)$this->get('universe_gate_deuterium_cost_multiplier', 10));
+    }
+
+    /**
      * Returns the battle engine setting.
      *
      * @return string

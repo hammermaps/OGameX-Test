@@ -19,6 +19,7 @@ use OGame\Models\FleetUnion;
 use OGame\Models\FleetUnionInvite;
 use OGame\Models\Planet\Coordinate;
 use OGame\Models\Resources;
+use OGame\Models\UniverseGateServer;
 use OGame\Models\User;
 use OGame\Services\CharacterClassService;
 use OGame\Services\CoordinateDistanceCalculator;
@@ -29,6 +30,7 @@ use OGame\Services\ObjectService;
 use OGame\Services\PlanetService;
 use OGame\Services\PlayerService;
 use OGame\Services\SettingsService;
+use OGame\Services\UniverseGateService;
 use OGame\ViewModels\FleetEventRowViewModel;
 use OGame\ViewModels\UnitViewModel;
 
@@ -43,7 +45,7 @@ class FleetController extends OGameController
      * @return View
      * @throws Exception
      */
-    public function index(Request $request, PlayerService $player, SettingsService $settings, FleetUnionService $fleetUnionService): View
+    public function index(Request $request, PlayerService $player, SettingsService $settings, FleetUnionService $fleetUnionService, UniverseGateService $universeGateService): View
     {
         // Define ship ids to include in the fleet screen.
         // 0 = military ships
@@ -104,6 +106,8 @@ class FleetController extends OGameController
             'expeditionSlotsMax' => $player->getExpeditionSlotsMax(),
             'fleetSpeedIncrement' => $fleetSpeedIncrement,
             'availableUnions' => $availableUnions,
+            'universeGateEnabled' => $universeGateService->isEnabled() && $universeGateService->isPlayerOptedIn($player),
+            'universeGateServers' => $universeGateService->activeServers(),
         ]);
     }
 
@@ -284,7 +288,7 @@ class FleetController extends OGameController
      * @return JsonResponse
      * @throws Exception
      */
-    public function dispatchCheckTarget(PlayerService $currentPlayer, PlanetServiceFactory $planetServiceFactory, CoordinateDistanceCalculator $coordinateDistanceCalculator, SettingsService $settingsService, FleetMissionService $fleetMissionService, FleetUnionService $fleetUnionService, CharacterClassService $characterClassService): JsonResponse
+    public function dispatchCheckTarget(PlayerService $currentPlayer, PlanetServiceFactory $planetServiceFactory, CoordinateDistanceCalculator $coordinateDistanceCalculator, SettingsService $settingsService, FleetMissionService $fleetMissionService, FleetUnionService $fleetUnionService, CharacterClassService $characterClassService, UniverseGateService $universeGateService): JsonResponse
     {
         $currentPlanet = $currentPlayer->planets->current();
 
@@ -309,6 +313,7 @@ class FleetController extends OGameController
         $system = (int)request()->input('system');
         $position = (int)request()->input('position');
         $targetType = (int)request()->input('type');
+        $targetUniverseId = (int)request()->input('target_universe_id', 0);
 
         // Validate coordinates against universe bounds
         $coordinateError = $this->validateCoordinates($galaxy, $system, $position, $settingsService->numberOfGalaxies());
@@ -320,6 +325,66 @@ class FleetController extends OGameController
         }
 
         $planetType = PlanetType::from($targetType);
+
+        if ($targetUniverseId > 0) {
+            $targetServer = UniverseGateServer::active()->find($targetUniverseId);
+            $units = $this->getUnitsFromRequest($currentPlanet);
+            $errors = [];
+            $enabledMissions = [];
+
+            try {
+                if ($targetServer === null) {
+                    throw new Exception(__('The selected target universe is not available.'));
+                }
+                $universeGateService->assertCanUseGate($currentPlayer, $currentPlanet, $targetServer, $units);
+                if (in_array($planetType, [PlanetType::Planet, PlanetType::Moon], true)) {
+                    $enabledMissions[] = 1;
+                }
+            } catch (Exception $e) {
+                $errors[] = ['message' => $e->getMessage(), 'error' => 140020];
+            }
+
+            return response()->json([
+                'shipsData' => $shipsData,
+                'status' => count($errors) === 0 ? 'success' : 'failure',
+                'errors' => $errors,
+                'additionalFlightSpeedinfo' => __('Universe Gate target: :name', ['name' => $targetServer?->name ?? '']),
+                'targetInhabited' => true,
+                'targetIsStrong' => false,
+                'targetIsOutlaw' => false,
+                'targetIsBuddyOrAllyMember' => false,
+                'targetPlayerId' => 99999,
+                'targetPlayerName' => $targetServer?->name ?? __('Remote universe'),
+                'targetPlayerColorClass' => 'active',
+                'targetPlayerRankIcon' => '',
+                'playerIsOutlaw' => false,
+                'targetPlanet' => [
+                    'galaxy' => $galaxy,
+                    'system' => $system,
+                    'position' => $position,
+                    'type' => $targetType,
+                    'name' => __('Remote universe target'),
+                ],
+                'emptySystems' => 0,
+                'inactiveSystems' => 0,
+                'bashingSystemLimitReached' => false,
+                'targetOk' => count($errors) === 0,
+                'components' => [],
+                'newAjaxToken' => csrf_token(),
+                'orders' => [
+                    1 => in_array(1, $enabledMissions, true),
+                    2 => false,
+                    3 => false,
+                    4 => false,
+                    5 => false,
+                    6 => false,
+                    7 => false,
+                    8 => false,
+                    9 => false,
+                    15 => false,
+                ],
+            ]);
+        }
 
         // Load the target planet
         $targetCoordinates = new Coordinate($galaxy, $system, $position);
@@ -449,7 +514,7 @@ class FleetController extends OGameController
      * @return JsonResponse
      * @throws Exception
      */
-    public function dispatchSendFleet(PlayerService $player, FleetMissionService $fleetMissionService, FleetUnionService $fleetUnionService, SettingsService $settingsService, CharacterClassService $characterClassService): JsonResponse
+    public function dispatchSendFleet(PlayerService $player, FleetMissionService $fleetMissionService, FleetUnionService $fleetUnionService, SettingsService $settingsService, CharacterClassService $characterClassService, UniverseGateService $universeGateService): JsonResponse
     {
         $galaxy = (int)request()->input('galaxy');
         $system = (int)request()->input('system');
@@ -494,6 +559,7 @@ class FleetController extends OGameController
 
         // Extract mission type from the request
         $mission_type = (int)request()->input('mission');
+        $targetUniverseId = (int)request()->input('target_universe_id', 0);
 
         // Extract resources from the request
         $metal = (int)request()->input('metal');
@@ -542,6 +608,53 @@ class FleetController extends OGameController
         $units = $this->getUnitsFromRequest($planet);
         $resources = new Resources($metal, $crystal, $deuterium, 0);
         $planetType = PlanetType::from($target_type);
+
+        if ($targetUniverseId > 0) {
+            if ($mission_type !== 1) {
+                return $this->validationErrorResponse(__('Universe Gate currently only supports attack missions.'));
+            }
+
+            $targetServer = UniverseGateServer::active()->find($targetUniverseId);
+            if ($targetServer === null) {
+                return $this->validationErrorResponse(__('The selected target universe is not available.'));
+            }
+
+            try {
+                $mission = $universeGateService->createOutgoingAttack(
+                    $player,
+                    $planet,
+                    $targetServer,
+                    $planetType,
+                    $galaxy,
+                    $system,
+                    $position,
+                    $units,
+                    $resources,
+                    $speed_percent
+                );
+
+                return response()->json([
+                    'success' => true,
+                    'message' => __('Universe Gate attack has been queued for remote dispatch.'),
+                    'universeGateMissionId' => $mission->id,
+                    'components' => [],
+                    'newAjaxToken' => csrf_token(),
+                    'redirectUrl' => route('fleet.index'),
+                ]);
+            } catch (Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => [
+                        [
+                            'message' => $e->getMessage(),
+                            'error' => 140020
+                        ]
+                    ],
+                    'components' => [],
+                    'newAjaxToken' => csrf_token(),
+                ]);
+            }
+        }
 
         // Check if this fleet should join an existing union and pre-validate timing
         $unionId = (int)request()->input('union');

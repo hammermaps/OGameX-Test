@@ -201,6 +201,24 @@
                                             </div>
                                         </div>
                                         <div class="category fieldwrapper alt bar">
+                                            <label class="styled textBeefy" data-element="universegate">
+                                                <img class="universe-gate-option-icon" src="/img/objects/buildings/universe_gate_micro.jpg" width="28" height="28" alt="{{ __('t_ingame.options.section_universe_gate') }}" title="{{ __('t_ingame.options.section_universe_gate') }}">
+                                                {{ __('t_ingame.options.section_universe_gate') }}
+                                            </label>
+                                        </div>
+                                        <div class="group bborder" style="display: none;">
+                                            <div class="fieldwrapper">
+                                                <label class="styled textBeefy">{{ __('t_ingame.options.universe_gate_enabled') }}</label>
+                                                <div class="thefield">
+                                                    <input type="hidden" name="universe_gate_enabled_present" value="1">
+                                                    <input type="checkbox" name="universe_gate_enabled" value="1" {{ old('universe_gate_enabled', $universe_gate_enabled ?? false) ? 'checked' : '' }}>
+                                                </div>
+                                            </div>
+                                            <div class="fieldwrapper">
+                                                <p>{{ __('t_ingame.options.universe_gate_hint') }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="category fieldwrapper alt bar">
                                             <label class="styled textBeefy" data-element="chat">
                                                 {{ __('t_ingame.options.section_chat') }}
                                             </label>

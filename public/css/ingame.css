@@ -48177,3 +48177,7 @@ TODO: Remove these at a later time if they are not needed anymore.
 <link rel="stylesheet" type="text/css" href="/css/ie8/0db2335aa04275bf3d33e76a35aafd.css" media="screen" />
 <![endif]-->
  */
+.universe-gate-option-icon {
+    vertical-align: middle;
+    margin-right: 6px;
+}

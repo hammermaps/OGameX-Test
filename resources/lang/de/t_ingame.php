@@ -268,6 +268,8 @@ return [
         'mission_espionage'        => 'Spionage',
         'mission_acs_defend'       => 'AKS Verteidigen',
         'mission_attack'           => 'Angriff',
+        'target_universe'         => 'Zieluniversum',
+        'local_universe'          => 'Lokales Universum',
         'mission_acs_attack'       => 'AKS Angriff',
         'mission_destroy_moon'     => 'Mondzerstörung',
 
@@ -1021,6 +1023,9 @@ return [
         // Reiter 2 – Allgemein
         'section_spy_probes'                        => 'Spionagesonden',
         'spy_probes_amount'                         => 'Anzahl der Spionagesonden:',
+        'section_universe_gate'                    => 'Universums-Sprungtor',
+        'universe_gate_enabled'                    => 'Universums-Sprungtor verwenden:',
+        'universe_gate_hint'                       => 'Wenn aktiviert, kannst du Angriffe über registrierte Universums-Sprungtore senden und von kompatiblen externen Universen als Ziel gewählt werden.',
         'section_chat'                              => 'Chat',
         'disable_chat_bar'                          => 'Chatleiste deaktivieren:',
         'section_warnings'                          => 'Warnungen',

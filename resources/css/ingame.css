@@ -11,6 +11,11 @@
 @import "ingame/modules/highscore.css";
 @import "ingame/modules/messages.css";
 
+.universe-gate-option-icon {
+    vertical-align: middle;
+    margin-right: 6px;
+}
+
 
 /* New style overrides that conflict with some existing styles, implement later */
 /*

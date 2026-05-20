@@ -271,6 +271,8 @@ return [
         'mission_espionage'        => 'Espionage',
         'mission_acs_defend'       => 'ACS Defend',
         'mission_attack'           => 'Attack',
+        'target_universe'         => 'Target universe',
+        'local_universe'          => 'Local universe',
         'mission_acs_attack'       => 'ACS Attack',
         'mission_destroy_moon'     => 'Moon Destruction',
 
@@ -1025,6 +1027,9 @@ return [
         // Tab 2 – General
         'section_spy_probes'                        => 'Spy probes',
         'spy_probes_amount'                         => 'Number of espionage probes:',
+        'section_universe_gate'                    => 'Universe Gate',
+        'universe_gate_enabled'                    => 'Enable Universe Gate usage:',
+        'universe_gate_hint'                       => 'When enabled, you may send cross-universe attacks through registered Universe Gates and can be targeted by compatible remote universes.',
         'section_chat'                              => 'Chat',
         'disable_chat_bar'                          => 'Deactivate chat bar:',
         'section_warnings'                          => 'Warnings',

@@ -9,6 +9,7 @@ use OGame\Http\Controllers\Admin\RulesController as AdminRulesController;
 use OGame\Http\Controllers\Admin\ServerAdministrationController;
 use OGame\Http\Controllers\Admin\ServerSettingsController as AdminServerSettingsController;
 use OGame\Http\Controllers\Admin\UpdateCheckController as AdminUpdateCheckController;
+use OGame\Http\Controllers\Admin\UniverseGateAdminController;
 use OGame\Http\Controllers\AllianceController;
 use OGame\Http\Controllers\AllianceDepotController;
 use OGame\Http\Controllers\BuddiesController;
@@ -263,6 +264,10 @@ Route::middleware(['auth', 'globalgame', 'locale', 'admin'])->group(function () 
     // Server settings
     Route::get('/admin/server-settings', [AdminServerSettingsController::class, 'index'])->name('admin.serversettings.index');
     Route::post('/admin/server-settings', [AdminServerSettingsController::class, 'update'])->name('admin.serversettings.update');
+    Route::get('/admin/universe-gates', [UniverseGateAdminController::class, 'index'])->name('admin.universe-gates.index');
+    Route::post('/admin/universe-gates', [UniverseGateAdminController::class, 'store'])->name('admin.universe-gates.store');
+    Route::put('/admin/universe-gates/{server}', [UniverseGateAdminController::class, 'update'])->name('admin.universe-gates.update');
+    Route::delete('/admin/universe-gates/{server}', [UniverseGateAdminController::class, 'destroy'])->name('admin.universe-gates.destroy');
 
     // Rules
     Route::get('/admin/rules', [AdminRulesController::class, 'index'])->name('admin.rules.index');

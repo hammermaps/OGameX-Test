@@ -32,6 +32,7 @@ class OptionsController extends OGameController
             'canUpdateUsername' => $canUpdateUsername,
             'player' => $player,
             'espionage_probes_amount' => $player->getEspionageProbesAmount(),
+            'universe_gate_enabled' => (bool)$player->getUser()->universe_gate_enabled,
         ]);
     }
 
@@ -177,6 +178,25 @@ class OptionsController extends OGameController
     }
 
     /**
+     * Process Universe Gate opt-in save request.
+     *
+     * @param Request $request
+     * @param PlayerService $player
+     * @return array<string,string>|null
+     */
+    public function processUniverseGateOptIn(Request $request, PlayerService $player): array|null
+    {
+        if (!array_key_exists('universe_gate_enabled_present', $request->all())) {
+            return null;
+        }
+
+        $player->getUser()->universe_gate_enabled = $request->has('universe_gate_enabled');
+        $player->save();
+
+        return array('success' => __('t_ingame.options.msg_settings_saved'));
+    }
+
+    /**
      * Save handler for index() form.
      *
      * @param Request $request
@@ -190,7 +210,8 @@ class OptionsController extends OGameController
             'processChangeUsername',
             'processChangePassword',
             'processVacationMode',
-            'processEspionageProbesAmount'
+            'processEspionageProbesAmount',
+            'processUniverseGateOptIn'
         ];
 
         // Loop through change handlers, execute them and if it triggers
