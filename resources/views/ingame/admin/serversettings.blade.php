@@ -30,6 +30,43 @@
                                     <input class="textInput w200" type="text" maxlength="20" value="{{ $universe_name }}" size="30" name="universe_name">
                                 </div>
                             </div>
+                            <div class="fieldwrapper">
+                                <label class="styled textBeefy">@lang('Universe identifier:')</label>
+                                <div class="thefield">
+                                    <input class="textInput w200" type="text" maxlength="64" value="{{ $universe_gate_identifier }}" size="30" name="universe_gate_identifier">
+                                </div>
+                                <div class="smallFont">@lang('Stable identifier used by other servers for Universe Gate registration.')</div>
+                            </div>
+                        </div>
+
+                        <p class="box_highlight textCenter no_buddies">@lang('Universe Gate settings.')</p>
+
+                        <div class="group bborder" style="display: block;">
+                            <div class="fieldwrapper">
+                                <a class="btn_blue" href="{{ route('admin.universe-gates.index') }}">@lang('Manage registered universes')</a>
+                            </div>
+                            <div class="fieldwrapper">
+                                <label class="styled textBeefy">@lang('Universe Gate enabled:')</label>
+                                <div class="thefield">
+                                    <square-checkbox class="square-checkbox">
+                                        <input type="checkbox" id="square-checkUniverseGateEnabled" name="universe_gate_enabled" value="1" {{ $universe_gate_enabled ? 'checked' : '' }}>
+                                        <label for="square-checkUniverseGateEnabled"></label>
+                                    </square-checkbox>
+                                </div>
+                            </div>
+                            <div class="fieldwrapper">
+                                <label class="styled textBeefy">@lang('Universe Gate cooldown (seconds):')</label>
+                                <div class="thefield">
+                                    <input type="text" pattern="[0-9]*" class="textInput w100 textCenter textBeefy" value="{{ $universe_gate_cooldown_seconds }}" size="10" name="universe_gate_cooldown_seconds">
+                                </div>
+                            </div>
+                            <div class="fieldwrapper">
+                                <label class="styled textBeefy">@lang('Universe Gate deuterium cost multiplier:')</label>
+                                <div class="thefield">
+                                    <input type="text" pattern="[0-9]*" class="textInput w50 textCenter textBeefy" value="{{ $universe_gate_deuterium_cost_multiplier }}" size="3" name="universe_gate_deuterium_cost_multiplier">
+                                </div>
+                                <div class="smallFont">@lang('Cross-universe dispatches only support attacks and multiply normal deuterium costs by this value.')</div>
+                            </div>
                         </div>
 
                         <p class="box_highlight textCenter no_buddies">@lang('You can change the server settings below. Changes will be applied immediately.')</p>

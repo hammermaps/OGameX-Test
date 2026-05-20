@@ -271,6 +271,8 @@ return [
         'mission_espionage'        => 'Spionaggio',
         'mission_acs_defend'       => 'Difesa ACS',
         'mission_attack'           => 'Attacco',
+        'target_universe'         => 'Universo di destinazione',
+        'local_universe'          => 'Universo locale',
         'mission_acs_attack'       => 'Attacco ACS',
         'mission_destroy_moon'     => 'Distruzione luna',
 
@@ -999,6 +1001,9 @@ return [
         // Tab 2 — Generale
         'section_spy_probes'                    => 'Sonde spia',
         'spy_probes_amount'                     => 'Numero di sonde di spionaggio:',
+        'section_universe_gate'                    => 'Portale universo',
+        'universe_gate_enabled'                    => 'Usa Portale universo:',
+        'universe_gate_hint'                       => 'Se attivo, puoi inviare attacchi tra universi tramite portali registrati e puoi essere scelto come bersaglio da universi esterni compatibili.',
         'section_chat'                          => 'Chat',
         'disable_chat_bar'                      => 'Disattiva barra chat:',
         'section_warnings'                      => 'Avvisi',

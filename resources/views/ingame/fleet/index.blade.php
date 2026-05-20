@@ -425,6 +425,10 @@
                 fleetDispatcher.getDeuteriumOnPlanetWithoutConsumption = function () {
                     return Math.max(0, Math.floor(this.deuteriumOnPlanet) - Math.ceil(this.getConsumption()));
                 };
+
+                $('#target_universe_id').on('change', function () {
+                    $('input[name="target_universe_id"][type="hidden"]').val($(this).val());
+                });
             });
 
             var apiDataJson = {
@@ -1107,6 +1111,17 @@ The &amp;#96;tactical retreat&amp;#96; option ends with 500,000 points.">
                                                        data-ipi-highlight-step="ipiFleetDestinationCoordsPosition">
                                             </div>
                                         </div>
+                                        @if ($universeGateEnabled && count($universeGateServers) > 0)
+                                            <div class="coords" style="margin-top: 8px;">
+                                                {{ __('t_ingame.fleet.target_universe') }}:
+                                                <select name="target_universe_id" id="target_universe_id" class="w130">
+                                                    <option value="0">{{ __('t_ingame.fleet.local_universe') }}</option>
+                                                    @foreach ($universeGateServers as $universeGateServer)
+                                                        <option value="{{ $universeGateServer->id }}">{{ $universeGateServer->name }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        @endif
                                     </td>
                                     <td id="shortcuts">
                                         <div>
@@ -1260,6 +1275,7 @@ The &amp;#96;tactical retreat&amp;#96; option ends with 500,000 points.">
                                         <input name="system" type="hidden" value="158">
                                         <input name="position" type="hidden" value="10">
                                         <input name="type" type="hidden" value="1">
+                                        <input name="target_universe_id" type="hidden" value="0">
                                         <input name="mission" type="hidden" value="0">
                                         <input name="union2" type="hidden" value="0">
                                         <input name="holdingOrExpTime" id="holdingOrExpTime" type="hidden" value="0">

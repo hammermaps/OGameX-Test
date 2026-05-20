@@ -49,6 +49,8 @@ use Spatie\Permission\Traits\HasRoles;
  * @property bool $character_class_free_used
  * @property Carbon|null $character_class_changed_at
  * @property bool $is_ai_player
+ * @property bool $universe_gate_enabled
+ * @property int|null $universe_gate_cooldown_until
  * @property-read DatabaseNotificationCollection<int, DatabaseNotification> $notifications
  * @property-read int|null $notifications_count
  * @property-read UserTech|null $tech
@@ -84,7 +86,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @mixin \Eloquent
  */
 #[Fillable([
-    'username', 'email', 'password', 'lang', 'espionage_probes_amount',
+    'username', 'email', 'password', 'lang', 'espionage_probes_amount', 'universe_gate_enabled',
 ])]
 #[Hidden([
     'password',
@@ -142,6 +144,7 @@ class User extends Authenticatable
         'character_class_changed_at' => 'datetime',
         'alliance_left_at' => 'datetime',
         'is_ai_player' => 'boolean',
+        'universe_gate_enabled' => 'boolean',
     ];
 
     /**
