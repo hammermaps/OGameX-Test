@@ -29,7 +29,8 @@ return new class () extends Migration {
             $table->json('resource_payload')->nullable();
             $table->json('result_payload')->nullable();
             $table->json('return_payload')->nullable();
-            $table->string('idempotency_key', 120)->unique();
+            $table->string('idempotency_key', 120);
+            $table->unique(['universe_gate_server_id', 'idempotency_key']);
             $table->unsignedBigInteger('cooldown_until')->nullable();
             $table->timestamp('remote_dispatched_at')->nullable();
             $table->timestamp('completed_at')->nullable();

@@ -46,9 +46,10 @@ class UniverseGateController extends Controller
             return $this->errorResponse('self_registration_rejected', 'A universe cannot register itself.', 409);
         }
 
-        $server = UniverseGateServer::updateOrCreate(
-            ['universe_identifier' => $request->string('universe_identifier')->toString()],
-            [
+        $server = UniverseGateServer::where('universe_identifier', $request->string('universe_identifier')->toString())->first();
+        if ($server === null) {
+            $server = UniverseGateServer::create([
+                'universe_identifier' => $request->string('universe_identifier')->toString(),
                 'name' => $request->string('name')->toString(),
                 'base_url' => rtrim($request->string('base_url')->toString(), '/'),
                 'status' => UniverseGateServer::STATUS_PENDING,
@@ -58,8 +59,14 @@ class UniverseGateController extends Controller
                 'metadata' => [
                     'api_version' => $request->input('api_version', UniverseGateService::API_VERSION),
                 ],
-            ]
-        );
+            ]);
+        } else {
+            $server->last_seen_at = Date::now();
+            $server->metadata = [
+                'api_version' => $request->input('api_version', UniverseGateService::API_VERSION),
+            ];
+            $server->save();
+        }
 
         return $this->universeGateService->apiResponse([
             'status' => 'pending',
@@ -104,7 +111,9 @@ class UniverseGateController extends Controller
             return $this->errorResponse('validation_failed', $validator->errors()->first(), 422);
         }
 
-        $existing = UniverseGateMission::where('idempotency_key', $request->string('idempotency_key')->toString())->first();
+        $existing = UniverseGateMission::where('universe_gate_server_id', $server->id)
+            ->where('idempotency_key', $request->string('idempotency_key')->toString())
+            ->first();
         if ($existing !== null) {
             return $this->universeGateService->apiResponse([
                 'status' => $existing->status,
@@ -165,6 +174,7 @@ class UniverseGateController extends Controller
 
         $mission = UniverseGateMission::where('uuid', $uuid)
             ->where('universe_gate_server_id', $server->id)
+            ->where('direction', UniverseGateMission::DIRECTION_OUTGOING)
             ->first();
 
         if ($mission === null) {
@@ -187,6 +197,7 @@ class UniverseGateController extends Controller
 
         $mission = UniverseGateMission::where('uuid', $uuid)
             ->where('universe_gate_server_id', $server->id)
+            ->where('direction', UniverseGateMission::DIRECTION_OUTGOING)
             ->first();
 
         if ($mission === null) {

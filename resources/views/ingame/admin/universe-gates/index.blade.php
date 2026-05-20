@@ -32,7 +32,10 @@
                         </div>
                         <div class="fieldwrapper">
                             <label class="styled textBeefy">@lang('Shared secret')</label>
-                            <div class="thefield"><input class="textInput w200" type="text" maxlength="255" name="shared_secret" required></div>
+                            <div class="thefield">
+                                <input class="textInput w200" type="password" maxlength="255" name="shared_secret" required autocomplete="new-password" id="shared_secret_input">
+                                <button type="button" onclick="var f=document.getElementById('shared_secret_input');f.type=f.type==='password'?'text':'password';">@lang('Show')</button>
+                            </div>
                         </div>
                         <div class="fieldwrapper">
                             <label class="styled textBeefy">@lang('Status')</label>

@@ -27,9 +27,19 @@ class UniverseGateAdminController extends OGameController
             'status' => ['required', 'in:pending,active,rejected,error'],
         ]);
 
+        $data['base_url'] = rtrim($data['base_url'], '/');
+
+        $existing = UniverseGateServer::where('universe_identifier', $data['universe_identifier'])->first();
+        $registeredAt = $data['status'] === UniverseGateServer::STATUS_ACTIVE
+            ? ($existing?->registered_at ?? now())
+            : $existing?->registered_at;
+
         UniverseGateServer::updateOrCreate(
             ['universe_identifier' => $data['universe_identifier']],
-            array_merge($data, ['registration_direction' => 'outgoing'])
+            array_merge($data, [
+                'registration_direction' => 'outgoing',
+                'registered_at' => $registeredAt,
+            ])
         );
 
         return redirect()->route('admin.universe-gates.index')->with('success', __('Changes saved!'));

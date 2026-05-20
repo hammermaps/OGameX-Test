@@ -214,8 +214,7 @@ class UniverseGateService
             return null;
         }
 
-        $cacheKey = 'universe-gate-nonce:' . $identifier . ':' . $nonce;
-        if (Cache::has($cacheKey)) {
+        if (strlen($nonce) > 128) {
             return null;
         }
 
@@ -229,7 +228,10 @@ class UniverseGateService
             return null;
         }
 
-        Cache::put($cacheKey, true, self::SIGNATURE_TOLERANCE_SECONDS);
+        $cacheKey = 'universe-gate-nonce:' . $identifier . ':' . $nonce;
+        if (!Cache::add($cacheKey, true, self::SIGNATURE_TOLERANCE_SECONDS)) {
+            return null;
+        }
         $server->last_seen_at = Date::now();
         $server->save();
 
