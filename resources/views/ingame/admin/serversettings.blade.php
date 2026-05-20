@@ -43,7 +43,7 @@
 
                         <div class="group bborder" style="display: block;">
                             <div class="fieldwrapper">
-                                <label class="styled textBeefy">@lang('Universe Gate:')</label>
+                                <label class="styled textBeefy">{{ __('t_ingame.options.section_universe_gate') }}:</label>
                                 <div class="thefield">
                                     <img src="/img/objects/buildings/universe_gate_small.jpg" width="40" height="40" alt="@lang('Universe Gate')" title="@lang('Universe Gate')">
                                 </div>
