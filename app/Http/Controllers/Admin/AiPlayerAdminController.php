@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\View\View;
 use OGame\Enums\AiPlayerProfile;
 use OGame\Http\Controllers\OGameController;
+use OGame\Models\AiDaemonMetric;
 use OGame\Models\AiPlayer;
 use OGame\Models\AiPlayerLog;
 use OGame\Models\User;
@@ -208,11 +209,19 @@ class AiPlayerAdminController extends OGameController
             ->limit(20)
             ->get();
 
+        // Last 30 metric snapshots (oldest first) to seed the charts on page load
+        $metrics = AiDaemonMetric::orderBy('id', 'desc')
+            ->limit(30)
+            ->get()
+            ->reverse()
+            ->values();
+
         return view('ingame.admin.ai-players.daemon')->with([
             'daemonStatus' => $daemonStatus,
             'activeCount' => $activeCount,
             'totalCount' => $aiPlayers->count(),
             'recentErrors' => $recentErrors,
+            'metrics' => $metrics,
             'settings' => $aiPlayerService->getGlobalSettings(),
         ]);
     }
@@ -395,6 +404,7 @@ class AiPlayerAdminController extends OGameController
                 'pid' => $daemonStatus->pid,
                 'uptime' => $daemonStatus->getUptime(),
                 'memory' => $daemonStatus->getFormattedMemoryUsage(),
+                'memory_usage_bytes' => (int) $daemonStatus->memory_usage,
                 'last_heartbeat_at' => $daemonStatus->last_heartbeat_at?->toIso8601String(),
                 'last_heartbeat_human' => $daemonStatus->last_heartbeat_at?->diffForHumans(),
                 'players_processed' => (int) $daemonStatus->players_processed,
