@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use OGame\Http\Controllers\Controller;
+use OGame\Models\Planet;
 use OGame\Models\UniverseGateMission;
 use OGame\Models\UniverseGateServer;
 use OGame\Services\SettingsService;
@@ -110,6 +111,26 @@ class UniverseGateController extends Controller
                 'mission_uuid' => $existing->uuid,
                 'duplicate' => true,
             ]);
+        }
+
+        $targetPlanet = Planet::where('galaxy', (int)$request->input('target.galaxy'))
+            ->where('system', (int)$request->input('target.system'))
+            ->where('planet', (int)$request->input('target.position'))
+            ->where('planet_type', (int)$request->input('target.type'))
+            ->where('destroyed', 0)
+            ->with('user')
+            ->first();
+
+        if ($targetPlanet === null) {
+            return $this->errorResponse('target_not_found', 'Target planet or moon does not exist.', 422);
+        }
+
+        if ($targetPlanet->user === null || !$targetPlanet->user->universe_gate_enabled) {
+            return $this->errorResponse('target_opt_in_required', 'Target player has not enabled Universe Gate attacks.', 422);
+        }
+
+        if ($targetPlanet->user->vacation_mode) {
+            return $this->errorResponse('target_vacation_mode', 'Target player is in vacation mode.', 422);
         }
 
         $mission = UniverseGateMission::create([

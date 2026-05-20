@@ -167,6 +167,7 @@ use Illuminate\Support\Carbon;
  * @property int $jump_gate
  * @property int|null $jump_gate_cooldown
  * @property int|null $default_jump_gate_target_id
+ * @property-read User|null $user
  * @method static Builder<static>|Planet whereJumpGate($value)
  * @method static Builder<static>|Planet whereLunarBase($value)
  * @method static Builder<static>|Planet whereSensorPhalanx($value)
@@ -182,5 +183,13 @@ class Planet extends Model
     public function planet(): BelongsTo
     {
         return $this->belongsTo('OGame\Models\Planet');
+    }
+
+    /**
+     * Get the user that owns this planet.
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 }
