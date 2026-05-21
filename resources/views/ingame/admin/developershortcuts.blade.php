@@ -291,6 +291,46 @@
                                     </div>
                                 </div>
                             </form>
+
+                            <form action="{{ route('admin.developershortcuts.user-builds') }}" name="form" method="post">
+                                {{ csrf_field() }}
+                                <p class="box_highlight textCenter no_buddies">@lang('Unlock all buildings & research for a user:')</p>
+                                <div class="group bborder" style="display: block;">
+                                    <div class="fieldwrapper">
+                                        <div class="smallFont">@lang('Sets all buildings, stations and research technologies to the specified level for every planet of the given user.')</div>
+                                        <label class="styled textBeefy">@lang('Username:')</label>
+                                        <div class="thefield">
+                                            <input type="text" class="textInput w200 textBeefy" placeholder="username" name="target_username">
+                                        </div>
+                                    </div>
+                                    <div class="fieldwrapper">
+                                        <label class="styled textBeefy">@lang('Level to set:')</label>
+                                        <div class="thefield">
+                                            <input type="number" class="textInput w50 textCenter textBeefy" placeholder="10" min="0" max="999" name="level" value="10">
+                                        </div>
+                                    </div>
+                                    <div class="fieldwrapper" style="text-align: center;">
+                                        <input type="submit" class="btn_blue" name="unlock_all" value="@lang('Unlock All Buildings & Research')">
+                                    </div>
+                                </div>
+                            </form>
+
+                            <form action="{{ route('admin.developershortcuts.complete-builds') }}" name="form" method="post">
+                                {{ csrf_field() }}
+                                <p class="box_highlight textCenter no_buddies">@lang('Instantly complete active build queue for a user:')</p>
+                                <div class="group bborder" style="display: block;">
+                                    <div class="fieldwrapper">
+                                        <div class="smallFont">@lang('Sets the completion time of all active (already started) building and research queue items to the past so they are processed on the next page load.')</div>
+                                        <label class="styled textBeefy">@lang('Username:')</label>
+                                        <div class="thefield">
+                                            <input type="text" class="textInput w200 textBeefy" placeholder="username" name="target_username">
+                                        </div>
+                                    </div>
+                                    <div class="fieldwrapper" style="text-align: center;">
+                                        <input type="submit" class="btn_blue" name="complete_builds" value="@lang('Instantly Complete Build Queue')">
+                                    </div>
+                                </div>
+                            </form>
                 </div>
             </div>
             </div>
