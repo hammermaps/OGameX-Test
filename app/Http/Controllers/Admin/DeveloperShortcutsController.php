@@ -441,20 +441,25 @@ class DeveloperShortcutsController extends OGameController
         $level  = (int) $validated['level'];
         $player = $playerServiceFactory->make($targetUser->id);
 
-        // Set all buildings and stations on every planet of this user.
-        // setObjectLevel() saves the planet row to the database by default (save_planet = true).
-        foreach ($player->planets->all() as $planet) {
+        // Set all buildings and stations on every planet (excluding moons) of this user.
+        // Pass save_planet=false to avoid a DB write on every call; save once per planet at the end.
+        foreach ($player->planets->allPlanets() as $planet) {
             foreach (ObjectService::getBuildingObjects() as $building) {
-                $planet->setObjectLevel($building->id, $level);
+                $planet->setObjectLevel($building->id, $level, false);
             }
             foreach (ObjectService::getStationObjects() as $station) {
-                $planet->setObjectLevel($station->id, $level);
+                $planet->setObjectLevel($station->id, $level, false);
             }
+            $planet->save();
         }
 
         // Set all research for this user.
-        foreach (ObjectService::getResearchObjects() as $research) {
-            $player->setResearchLevel($research->machine_name, $level);
+        // Defer the DB save to the last update so the shared UserTech row is only written once.
+        $researchObjects = ObjectService::getResearchObjects();
+        $lastResearchKey = array_key_last($researchObjects);
+        foreach ($researchObjects as $key => $research) {
+            // Only save to DB on the last research item to avoid multiple writes to the shared UserTech row.
+            $player->setResearchLevel($research->machine_name, $level, $key === $lastResearchKey);
         }
 
         return redirect()->back()->with('success', "All buildings and research set to level {$level} for user '{$targetUser->username}'.");
