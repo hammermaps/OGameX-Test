@@ -5,12 +5,16 @@ namespace OGame\Http\Controllers\Admin;
 use Exception;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Date;
 use Illuminate\View\View;
 use OGame\Facades\AppUtil;
+use OGame\Factories\PlayerServiceFactory;
 use OGame\Factories\PlanetServiceFactory;
 use OGame\GameConstants\UniverseConstants;
 use OGame\Http\Controllers\OGameController;
+use OGame\Models\BuildingQueue;
 use OGame\Models\Planet\Coordinate;
+use OGame\Models\ResearchQueue;
 use OGame\Models\Resources;
 use OGame\Models\User;
 use OGame\Services\DarkMatterService;
@@ -413,6 +417,94 @@ class DeveloperShortcutsController extends OGameController
         } catch (Exception $e) {
             return redirect()->back()->with('error', 'Failed to update dark matter: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Sets all buildings/stations and all research to a given level for a target user.
+     *
+     * @param Request $request
+     * @param PlayerServiceFactory $playerServiceFactory
+     * @return RedirectResponse
+     */
+    public function userBuildsUpdate(Request $request, PlayerServiceFactory $playerServiceFactory): RedirectResponse
+    {
+        $validated = $request->validate([
+            'target_username' => 'required|string',
+            'level'           => 'required|integer|min:0|max:999',
+        ]);
+
+        $targetUser = User::where('username', $validated['target_username'])->first();
+        if (!$targetUser) {
+            return redirect()->back()->with('error', __('User not found.'));
+        }
+
+        $level  = (int) $validated['level'];
+        $player = $playerServiceFactory->make($targetUser->id);
+
+        // Set all buildings and stations on every planet (excluding moons) of this user.
+        // Pass save_planet=false to avoid a DB write on every call; save once per planet at the end.
+        foreach ($player->planets->allPlanets() as $planet) {
+            foreach (ObjectService::getBuildingObjects() as $building) {
+                $planet->setObjectLevel($building->id, $level, false);
+            }
+            foreach (ObjectService::getStationObjects() as $station) {
+                $planet->setObjectLevel($station->id, $level, false);
+            }
+            $planet->save();
+        }
+
+        // Set all research for this user.
+        // Defer the DB save to the last update so the shared UserTech row is only written once.
+        $researchObjects = ObjectService::getResearchObjects();
+        $lastResearchKey = array_key_last($researchObjects);
+        foreach ($researchObjects as $key => $research) {
+            // Only save to DB on the last research item to avoid multiple writes to the shared UserTech row.
+            $player->setResearchLevel($research->machine_name, $level, $key === $lastResearchKey);
+        }
+
+        return redirect()->back()->with('success', "All buildings and research set to level {$level} for user '{$targetUser->username}'.");
+    }
+
+    /**
+     * Instantly completes all pending building and research queue items for a target user
+     * by setting their time_end to the past so they are processed on the next page load.
+     *
+     * @param Request $request
+     * @param PlayerServiceFactory $playerServiceFactory
+     * @return RedirectResponse
+     */
+    public function completeBuildQueue(Request $request, PlayerServiceFactory $playerServiceFactory): RedirectResponse
+    {
+        $validated = $request->validate([
+            'target_username' => 'required|string',
+        ]);
+
+        $targetUser = User::where('username', $validated['target_username'])->first();
+        if (!$targetUser) {
+            return redirect()->back()->with('error', __('User not found.'));
+        }
+
+        $now    = (int) Date::now()->timestamp - 1;
+        $player = $playerServiceFactory->make($targetUser->id);
+
+        $planetIds = $player->planets->allIds();
+
+        // Instantly complete all active building queue items for this user.
+        $buildingCount = BuildingQueue::whereIn('planet_id', $planetIds)
+            ->where('processed', 0)
+            ->where('canceled', 0)
+            ->where('building', 1)
+            ->update(['time_end' => $now]);
+
+        // Instantly complete all active research queue items for this user.
+        $researchCount = ResearchQueue::join('planets', 'research_queues.planet_id', '=', 'planets.id')
+            ->where('planets.user_id', $targetUser->id)
+            ->where('research_queues.processed', 0)
+            ->where('research_queues.canceled', 0)
+            ->where('research_queues.building', 1)
+            ->update(['research_queues.time_end' => $now]);
+
+        return redirect()->back()->with('success', "Instantly completed {$buildingCount} building(s) and {$researchCount} research item(s) for user '{$targetUser->username}'. Reload their page to apply.");
     }
 
     /**
