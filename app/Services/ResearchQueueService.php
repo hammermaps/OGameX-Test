@@ -126,6 +126,9 @@ class ResearchQueueService
         }
 
         // Verify that the currently authenticated user (if any) is the planet owner.
+        // Unlike BuildingQueueService and UnitQueueService (which derive the owner from the
+        // planet), here we check directly against the $player argument because this method
+        // receives an explicit PlayerService and the planet may not carry a player reference.
         if (auth()->check() && auth()->id() !== $player->getId()) {
             throw new Exception('You are not the owner of this planet.');
         }

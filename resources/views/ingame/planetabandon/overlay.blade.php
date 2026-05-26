@@ -77,7 +77,8 @@
             <td colspan="3">
                 <form id="planetMaintenanceDelete" action="{{ route('planetabandon.abandon.confirm') }}">
                     <input type='hidden' name='_token' value='{{ csrf_token() }}'/>
-                    <input type='hidden' name='planet_id' value='{{ $currentPlanet->getPlanetId() }}'/>                    <div id="giveUpNotification">
+                    <input type='hidden' name='planet_id' value='{{ $currentPlanet->getPlanetId() }}'/>
+                    <div id="giveUpNotification">
                         @if ($isMoon)
                             {{ __('t_ingame.planet_abandon.items_lost_moon') }}
                         @else
