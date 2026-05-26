@@ -5,6 +5,7 @@ namespace OGame\Http\Controllers;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
+use OGame\Services\PlanetService;
 use OGame\Services\PlayerService;
 
 class PlanetAbandonController extends OGameController
@@ -91,11 +92,9 @@ class PlanetAbandonController extends OGameController
 
         // Resolve the planet to abandon using the explicitly provided planet_id so that
         // a current-planet switch between overlay open and form submit cannot affect the wrong planet.
-        $requestedPlanetId = (int)request('planet_id');
-        if ($requestedPlanetId > 0 && $player->planets->planetExistsAndOwnedByPlayer($requestedPlanetId)) {
-            $planetToDelete = $player->planets->getById($requestedPlanetId);
-        } else {
-            $planetToDelete = $player->planets->current();
+        $planetToDelete = $this->resolveRequestedPlanet($player);
+        if ($planetToDelete === null) {
+            return $this->invalidPlanetResponse();
         }
 
         $isMoon = $planetToDelete->isMoon();
@@ -136,11 +135,9 @@ class PlanetAbandonController extends OGameController
         $password = request('password');
 
         // Resolve the planet to abandon using the explicitly provided planet_id.
-        $requestedPlanetId = (int)request('planet_id');
-        if ($requestedPlanetId > 0 && $player->planets->planetExistsAndOwnedByPlayer($requestedPlanetId)) {
-            $planetToDelete = $player->planets->getById($requestedPlanetId);
-        } else {
-            $planetToDelete = $player->planets->current();
+        $planetToDelete = $this->resolveRequestedPlanet($player);
+        if ($planetToDelete === null) {
+            return $this->invalidPlanetResponse();
         }
         $isMoon = $planetToDelete->isMoon();
 
@@ -187,6 +184,29 @@ class PlanetAbandonController extends OGameController
             ],
             'newAjaxToken' => csrf_token(),
             // TODO: the original code includes "productionBox" key with HTML inside of it, check later if it's needed?
+        ]);
+    }
+
+    private function resolveRequestedPlanet(PlayerService $player): ?PlanetService
+    {
+        $requestedPlanetId = (int)request('planet_id');
+        if ($requestedPlanetId < 1 || !$player->planets->planetExistsAndOwnedByPlayer($requestedPlanetId)) {
+            return null;
+        }
+
+        return $player->planets->getById($requestedPlanetId);
+    }
+
+    private function invalidPlanetResponse(): JsonResponse
+    {
+        return response()->json([
+            'status' => 'error',
+            'errorbox' => [
+                'type' => 'fadeBox',
+                'text' => __('Target planet does not exist'),
+                'failed' => true,
+            ],
+            'newAjaxToken' => csrf_token(),
         ]);
     }
 }
