@@ -125,8 +125,11 @@ class ResearchQueueService
             throw new Exception('Only research objects can be added to the research queue.');
         }
 
-        // @TODO: add checks that current logged in user is owner of planet
-        // and is able to add this object to the research queue.
+        // Verify that the currently authenticated user (if any) is the planet owner.
+        if (auth()->check() && auth()->id() !== $player->getId()) {
+            throw new Exception('You are not the owner of this planet.');
+        }
+
         $current_level = $player->getResearchLevel($object->machine_name);
 
         // Check to see how many other items of this technology there are already

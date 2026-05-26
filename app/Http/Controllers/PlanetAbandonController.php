@@ -89,11 +89,15 @@ class PlanetAbandonController extends OGameController
             ]);
         }
 
-        $planetToDelete = $player->planets->current();
+        // Resolve the planet to abandon using the explicitly provided planet_id so that
+        // a current-planet switch between overlay open and form submit cannot affect the wrong planet.
+        $requestedPlanetId = (int)request('planet_id');
+        if ($requestedPlanetId > 0 && $player->planets->planetExistsAndOwnedByPlayer($requestedPlanetId)) {
+            $planetToDelete = $player->planets->getById($requestedPlanetId);
+        } else {
+            $planetToDelete = $player->planets->current();
+        }
 
-        // NOTE: We are abandoning the current planet. If the user has switched to another planet while this popup
-        // is shown or deletion is being processed it is possible that the wrong planet will be deleted.
-        // TODO: pass along planet ID explicitly to avoid this issue.
         $isMoon = $planetToDelete->isMoon();
 
         // Return JSON response to ask user to confirm.
@@ -112,6 +116,7 @@ class PlanetAbandonController extends OGameController
                 'nokFunction' => 'reload',
             ],
             'password_checked' => true,
+            'planet_id' => $planetToDelete->getPlanetId(),
             'intent' => route('planetabandon.abandon'),
             'newAjaxToken' => csrf_token(),
             // TODO: the original code includes "productionBox" key with HTML inside of it, check later if it's needed?
@@ -130,7 +135,13 @@ class PlanetAbandonController extends OGameController
         // Get form data
         $password = request('password');
 
-        $planetToDelete = $player->planets->current();
+        // Resolve the planet to abandon using the explicitly provided planet_id.
+        $requestedPlanetId = (int)request('planet_id');
+        if ($requestedPlanetId > 0 && $player->planets->planetExistsAndOwnedByPlayer($requestedPlanetId)) {
+            $planetToDelete = $player->planets->getById($requestedPlanetId);
+        } else {
+            $planetToDelete = $player->planets->current();
+        }
         $isMoon = $planetToDelete->isMoon();
 
         // Validate password

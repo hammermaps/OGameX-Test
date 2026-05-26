@@ -68,10 +68,7 @@ class UnitQueueService
             $time_per_unit = ($item->time_end - $item->time_start) / $item->object_amount;
 
             // Get timestamp where a unit has been presented lastly.
-            $last_update = $item->time_progress;
-            if ($last_update < $item->time_start) {
-                $last_update = $item->time_start;
-            }
+            $last_update = $this->getLastUpdateTimestamp($item);
             $last_update_diff = (int)Date::now()->timestamp - $last_update;
             $time_countdown_next_single = $time_per_unit - $last_update_diff;
 
@@ -92,6 +89,23 @@ class UnitQueueService
 
         // Create QueueListViewModel
         return new UnitQueueListViewModel($list);
+    }
+
+    /**
+     * Returns the last-update timestamp for a unit queue item, clamped to time_start.
+     * This logic is shared between the queue display (retrieveQueue) and the unit
+     * award processing (PlanetService::updateUnitQueue).
+     *
+     * @param UnitQueue $item
+     * @return int
+     */
+    public function getLastUpdateTimestamp(UnitQueue $item): int
+    {
+        $last_update = $item->time_progress;
+        if ($last_update < $item->time_start) {
+            $last_update = $item->time_start;
+        }
+        return $last_update;
     }
 
     /**
@@ -158,8 +172,10 @@ class UnitQueueService
      */
     public function add(PlanetService $planet, int $object_id, int $requested_build_amount): void
     {
-        // @TODO: add checks that current logged in user is owner of planet
-        // and is able to add this object to the building queue.
+        // Verify that the currently authenticated user (if any) is the planet owner.
+        if (auth()->check() && ($planet->getPlayer() === null || auth()->id() !== $planet->getPlayer()->getId())) {
+            throw new Exception('You are not the owner of this planet.');
+        }
 
         // Only allow positive numbers.
         if ($requested_build_amount < 1) {
