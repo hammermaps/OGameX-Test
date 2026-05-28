@@ -44,12 +44,11 @@ class GlobalGame
             $player->update();
 
             // Update current planet of player.
-            // TODO: due to how planet update locking works, in the "load player" call above
-            // the player object and all of its planets are loaded for the first time. Then here
-            // in the update call we retrieve the current planet again to ensure we have the latest data.
-            // This update mechanism could be improved by calling it directly in the place when the player and
-            // planet objects are loaded for the first time. This would save one select call to the database.
-            // So it's not a big deal, but it's a small performance improvement that could be done.
+            // Note: due to how planet-update locking works, the player and all its planets are
+            // loaded above. This second update() call re-fetches the current planet to obtain
+            // the latest data after any concurrent updates (e.g. fleet missions processed just
+            // above). The redundant SELECT is a minor performance cost; a future improvement
+            // would be to consolidate the initial load and this update into a single read.
             $player->planets->current()->update();
 
             // Update all fleet missions of player that are associated with any of the player's planets.

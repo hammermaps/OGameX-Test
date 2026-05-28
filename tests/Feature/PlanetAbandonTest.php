@@ -19,6 +19,7 @@ class PlanetAbandonTest extends AccountTestCase
         $response = $this->post('/ajax/planet-abandon/abandon', [
             '_token' => csrf_token(),
             'password' => 'password',
+            'planet_id' => $this->secondPlanetService->getPlanetId(),
         ]);
         $response->assertStatus(200);
         $this->assertStringContainsString('Planet has been abandoned successfully!', (string)$response->getContent());
@@ -43,6 +44,7 @@ class PlanetAbandonTest extends AccountTestCase
                     $response = $this->post('/ajax/planet-abandon/abandon', [
                         '_token' => csrf_token(),
                         'password' => 'password',
+                        'planet_id' => $planet->getPlanetId(),
                     ]);
                     $response->assertStatus(200);
                     $this->assertStringContainsString('Planet has been abandoned successfully!', (string)$response->getContent());
@@ -59,10 +61,47 @@ class PlanetAbandonTest extends AccountTestCase
         $response = $this->post('/ajax/planet-abandon/abandon', [
             '_token' => csrf_token(),
             'password' => 'password',
+            'planet_id' => $this->planetService->getPlanetId(),
         ]);
 
         // Assert that response is HTTP 200 but contains error message.
         $response->assertStatus(200);
         $this->assertStringContainsString('Cannot abandon only remaining planet', (string)$response->getContent());
+    }
+
+    public function testAbandonConfirmRequiresValidOwnedPlanetId(): void
+    {
+        $response = $this->post('/ajax/planet-abandon/abandon-confirm', [
+            '_token' => csrf_token(),
+            'password' => 'password',
+        ]);
+
+        $response->assertStatus(200);
+        $responseData = $response->json();
+
+        $this->assertSame('error', $responseData['status']);
+        $this->assertSame('Target planet does not exist', $responseData['errorbox']['text']);
+        $this->assertTrue($responseData['errorbox']['failed']);
+    }
+
+    public function testAbandonRequiresValidOwnedPlanetId(): void
+    {
+        $startPlanetCount = $this->planetService->getPlayer()->planets->planetCount();
+
+        $response = $this->post('/ajax/planet-abandon/abandon', [
+            '_token' => csrf_token(),
+            'password' => 'password',
+            'planet_id' => PHP_INT_MAX,
+        ]);
+
+        $response->assertStatus(200);
+        $responseData = $response->json();
+
+        $this->assertSame('error', $responseData['status']);
+        $this->assertSame('Target planet does not exist', $responseData['errorbox']['text']);
+        $this->assertTrue($responseData['errorbox']['failed']);
+
+        $this->planetService->getPlayer()->load($this->planetService->getPlayer()->getId());
+        $this->assertEquals($startPlanetCount, $this->planetService->getPlayer()->planets->planetCount());
     }
 }

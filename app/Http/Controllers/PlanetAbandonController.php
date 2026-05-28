@@ -5,6 +5,7 @@ namespace OGame\Http\Controllers;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
+use OGame\Services\PlanetService;
 use OGame\Services\PlayerService;
 
 class PlanetAbandonController extends OGameController
@@ -89,11 +90,13 @@ class PlanetAbandonController extends OGameController
             ]);
         }
 
-        $planetToDelete = $player->planets->current();
+        // Resolve the planet to abandon using the explicitly provided planet_id so that
+        // a current-planet switch between overlay open and form submit cannot affect the wrong planet.
+        $planetToDelete = $this->resolveRequestedPlanet($player);
+        if ($planetToDelete === null) {
+            return $this->invalidPlanetResponse();
+        }
 
-        // NOTE: We are abandoning the current planet. If the user has switched to another planet while this popup
-        // is shown or deletion is being processed it is possible that the wrong planet will be deleted.
-        // TODO: pass along planet ID explicitly to avoid this issue.
         $isMoon = $planetToDelete->isMoon();
 
         // Return JSON response to ask user to confirm.
@@ -112,6 +115,7 @@ class PlanetAbandonController extends OGameController
                 'nokFunction' => 'reload',
             ],
             'password_checked' => true,
+            'planet_id' => $planetToDelete->getPlanetId(),
             'intent' => route('planetabandon.abandon'),
             'newAjaxToken' => csrf_token(),
             // TODO: the original code includes "productionBox" key with HTML inside of it, check later if it's needed?
@@ -130,7 +134,11 @@ class PlanetAbandonController extends OGameController
         // Get form data
         $password = request('password');
 
-        $planetToDelete = $player->planets->current();
+        // Resolve the planet to abandon using the explicitly provided planet_id.
+        $planetToDelete = $this->resolveRequestedPlanet($player);
+        if ($planetToDelete === null) {
+            return $this->invalidPlanetResponse();
+        }
         $isMoon = $planetToDelete->isMoon();
 
         // Validate password
@@ -176,6 +184,29 @@ class PlanetAbandonController extends OGameController
             ],
             'newAjaxToken' => csrf_token(),
             // TODO: the original code includes "productionBox" key with HTML inside of it, check later if it's needed?
+        ]);
+    }
+
+    private function resolveRequestedPlanet(PlayerService $player): ?PlanetService
+    {
+        $requestedPlanetId = (int)request('planet_id');
+        if ($requestedPlanetId < 1 || !$player->planets->planetExistsAndOwnedByPlayer($requestedPlanetId)) {
+            return null;
+        }
+
+        return $player->planets->getById($requestedPlanetId);
+    }
+
+    private function invalidPlanetResponse(): JsonResponse
+    {
+        return response()->json([
+            'status' => 'error',
+            'errorbox' => [
+                'type' => 'fadeBox',
+                'text' => __('Target planet does not exist'),
+                'failed' => true,
+            ],
+            'newAjaxToken' => csrf_token(),
         ]);
     }
 }

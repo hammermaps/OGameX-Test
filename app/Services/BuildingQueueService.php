@@ -92,8 +92,11 @@ class BuildingQueueService
             throw new Exception('This building can not be built on this planet type (planet or moon specific).');
         }
 
-        // @TODO: add checks that current logged in user is owner of planet
-        // and is able to add this object to the building queue.
+        // Verify that the currently authenticated user (if any) is the planet owner.
+        if (auth()->check() && ($planet->getPlayer() === null || auth()->id() !== $planet->getPlayer()->getId())) {
+            throw new Exception('You are not the owner of this planet.');
+        }
+
         $current_level = $planet->getObjectLevel($building->machine_name);
 
         // Calculate the level after all queue items (upgrades and downgrades) complete

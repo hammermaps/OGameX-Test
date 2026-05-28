@@ -1563,68 +1563,64 @@ class PlanetService
         $queue = resolve(UnitQueueService::class);
         $unit_queue = $queue->retrieveBuilding($this->getPlanetId());
 
-        // @TODO: add DB transaction wrapper
-        foreach ($unit_queue as $item) {
-            // Get object information.
-            $object = ObjectService::getUnitObjectById($item->object_id);
+        DB::transaction(function () use ($unit_queue, $queue, $save_planet) {
+            foreach ($unit_queue as $item) {
+                // Get object information.
+                $object = ObjectService::getUnitObjectById($item->object_id);
 
-            $now = (int)Date::now()->timestamp;
+                $now = (int)Date::now()->timestamp;
 
-            // If time_end has fully elapsed, award all remaining units at once.
-            // This handles cases where time was reduced (e.g. via DM halving/complete).
-            if ($now >= $item->time_end) {
-                $remaining = $item->object_amount - $item->object_amount_progress;
-                if ($remaining > 0) {
-                    $item->time_progress = $item->time_end;
-                    $item->object_amount_progress = $item->object_amount;
-                    $item->processed = 1;
+                // If time_end has fully elapsed, award all remaining units at once.
+                // This handles cases where time was reduced (e.g. via DM halving/complete).
+                if ($now >= $item->time_end) {
+                    $remaining = $item->object_amount - $item->object_amount_progress;
+                    if ($remaining > 0) {
+                        $item->time_progress = $item->time_end;
+                        $item->object_amount_progress = $item->object_amount;
+                        $item->processed = 1;
+                        $item->save();
+
+                        $this->addUnit($object->machine_name, $remaining, $save_planet);
+                    }
+                    continue;
+                }
+
+                // Calculate if we can partially (or fully) complete this order
+                // yet based on time per unit and amount of ordered units.
+                $time_per_unit = ($item->time_end - $item->time_start) / $item->object_amount;
+
+                // Get timestamp where a unit has been presented lastly.
+                $last_update = $queue->getLastUpdateTimestamp($item);
+                $last_update_diff = $now - $last_update;
+
+                // If difference between last update and now is equal to or bigger
+                // than the time per unit, give the unit and record progress.
+                if ($last_update_diff >= $time_per_unit) {
+                    // Get exact amount of units to reward
+                    $unit_amount = (int)floor($last_update_diff / $time_per_unit);
+
+                    // Unit amount cannot be more than the order in total.
+                    if ($item->object_amount_progress + $unit_amount > $item->object_amount) {
+                        $unit_amount = $item->object_amount - $item->object_amount_progress;
+                    }
+
+                    $new_time_progress = $last_update + ($time_per_unit * $unit_amount);
+
+                    // Update build record
+                    $item->time_progress = $new_time_progress;
+                    $item->object_amount_progress += $unit_amount;
+
+                    if ($item->object_amount_progress >= $item->object_amount) {
+                        $item->processed = 1;
+                    }
+
                     $item->save();
 
-                    $this->addUnit($object->machine_name, $remaining, $save_planet);
+                    // Update planet fleet amount
+                    $this->addUnit($object->machine_name, $unit_amount, $save_planet);
                 }
-                continue;
             }
-
-            // Calculate if we can partially (or fully) complete this order
-            // yet based on time per unit and amount of ordered units.
-            $time_per_unit = ($item->time_end - $item->time_start) / $item->object_amount;
-
-            // Get timestamp where a unit has been presented lastly.
-            // @TODO: refactor this and abstract it as the UnitQueueService
-            // uses the exact same logic for displaying purposes in the queue.
-            $last_update = $item->time_progress;
-            if ($last_update < $item->time_start) {
-                $last_update = $item->time_start;
-            }
-            $last_update_diff = $now - $last_update;
-
-            // If difference between last update and now is equal to or bigger
-            // than the time per unit, give the unit and record progress.
-            if ($last_update_diff >= $time_per_unit) {
-                // Get exact amount of units to reward
-                $unit_amount = (int)floor($last_update_diff / $time_per_unit);
-
-                // Unit amount cannot be more than the order in total.
-                if ($item->object_amount_progress + $unit_amount > $item->object_amount) {
-                    $unit_amount = $item->object_amount - $item->object_amount_progress;
-                }
-
-                $new_time_progress = $last_update + ($time_per_unit * $unit_amount);
-
-                // Update build record
-                $item->time_progress = $new_time_progress;
-                $item->object_amount_progress += $unit_amount;
-
-                if ($item->object_amount_progress >= $item->object_amount) {
-                    $item->processed = 1;
-                }
-
-                $item->save();
-
-                // Update planet fleet amount
-                $this->addUnit($object->machine_name, $unit_amount, $save_planet);
-            }
-        }
+        });
     }
 
     /**
